@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns="http://java.sun.com/xml/ns/javaee" xmlns:web="http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd"
+	xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd"
+	id="WebApp_ID" version="2.5">
+	<display-name>baseapp</display-name>
+	<welcome-file-list>
+		<welcome-file>login.jsp</welcome-file>
+	</welcome-file-list>
+	<!-- 微信demo -->
+	<!-- 核心servlet -->
+	<!--
+	<servlet>
+		<servlet-name>CoreServlet</servlet-name>
+		<servlet-class>com.yc.wabc.servlets.CoreServlet</servlet-class>
+	</servlet>
+
+	<servlet-mapping>
+		<servlet-name>CoreServlet</servlet-name>
+		<url-pattern>/CoreServlet.do</url-pattern>
+	</servlet-mapping>
+	
+	<servlet>  
+        <servlet-name>MyServlet</servlet-name>  
+        <servlet-class>com.yc.wabc.servlets.LoginServlet</servlet-class>  
+    </servlet>  
+  
+    <servlet-mapping>  
+        	<servlet-name>MyServlet</servlet-name>  
+            <url-pattern>/LoginServlet.do</url-pattern>  
+    </servlet-mapping>  
+    
+
+	 
+	<servlet>
+		<servlet-name>OAuthServlet</servlet-name>
+		<servlet-class>com.yc.wabc.servlets.OAuthServlet</servlet-class>
+	</servlet>
+
+	<servlet-mapping>
+		<servlet-name>OAuthServlet</servlet-name>
+		<url-pattern>/mobile/OAuthServlet.do</url-pattern>
+	</servlet-mapping>
+	  -->
+
+	<!--
+		Mazole 解决乱码问题 <filter> <filter-name>encodingFilter</filter-name>
+		<filter-class>org.springframework.web.filter.CharacterEncodingFilter</filter-class>
+		<init-param> <param-name>encoding</param-name>
+		<param-value>UTF-8</param-value> </init-param> </filter>
+	-->
+	<filter>
+		<filter-name>struts2</filter-name>
+		<filter-class>org.apache.struts2.dispatcher.FilterDispatcher</filter-class>
+	</filter>
+	<filter-mapping>
+		<filter-name>struts2</filter-name>
+		<url-pattern>*.action</url-pattern>
+	</filter-mapping>
+	<filter-mapping>
+		<filter-name>struts2</filter-name>
+		<url-pattern>*.jsp</url-pattern>
+	</filter-mapping>
+	<context-param>
+		<param-name>contextConfigLocation</param-name>
+		<param-value>classpath*:*Context*.xml</param-value>
+	</context-param>
+	<listener>
+		<listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+	</listener>
+	<!--listener>
+		<listener-class>com.sunwah.baseapp.taskinterface.OnDutyLogTimingTaskListener</listener-class>
+	</listener-->
+
+	<!-- Flex BlazeDS Config -->
+	<display-name>BlazeDS</display-name>
+	<description>BlazeDS Application</description>
+	<!-- Http Flex Session attribute and binding listener support -->
+	<listener>
+		<listener-class>flex.messaging.HttpFlexSession</listener-class>
+	</listener>
+
+	<!-- add by ljf -->
+<!-- 	<listener>
+  		<listener-class>jiamigou.MyServletContextListener</listener-class>
+	</listener>-->
+	<!-- add by ljf end -->
+	
+	
+	
+
+	<welcome-file-list>
+		<welcome-file>index.html</welcome-file>
+		<welcome-file>index.htm</welcome-file>
+	</welcome-file-list>
+
+	<!-- for WebSphere deployment, please uncomment -->
+	<!--
+		<resource-ref> <description>Flex Messaging WorkManager</description>
+		<res-ref-name>wm/MessagingWorkManager</res-ref-name>
+		<res-type>com.ibm.websphere.asynchbeans.WorkManager</res-type>
+		<res-auth>Container</res-auth>
+		<res-sharing-scope>Shareable</res-sharing-scope> </resource-ref>
+	-->
+  
+    
+    <session-config>
+        <session-timeout>60</session-timeout>
+    </session-config>  
+       
+
+</web-app>

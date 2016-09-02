@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel title="{'各月份' + fieldName +'统计图表'}" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns="*" creationComplete="init()" width="800" height="500" fontSize="13"
+	borderColor="#cccccc" borderAlpha="0.9" textAlign="center">
+	<!--选择统计月对比类列时，可饼状图和柱状图展示该类各月份所占比例-->
+	<mx:RemoteObject id="dictRO" destination="emergencyEventFlexCountRO" fault="faultHandler(event)">
+		<mx:method name="getComplainConsults" result="getComplainConsultsHandler(event)"/>
+		<mx:method name="getComplainConsultDetail" result="getComplainConsultDetailHandler(event)"/>
+	</mx:RemoteObject>
+	<mx:Script>
+		<![CDATA[
+			import mx.charts.events.ChartItemEvent;
+			import mx.events.ListEvent;
+			import com.reports.emergencyEventReports.components.LegendFontStyle;
+			import mx.rpc.events.ResultEvent;
+			import mx.controls.Alert;
+			import mx.rpc.events.FaultEvent;
+			import mx.charts.series.ColumnSeries;
+			import mx.charts.CategoryAxis;
+			import mx.managers.PopUpManager;
+			import mx.collections.ArrayCollection;
+		
+			[Bindable]
+			public var typeByRealm:ArrayCollection;
+			[Bindable]
+			public var fieldName:String;
+			[Bindable]
+			public var monthArrc:ArrayCollection;
+			[Bindable]
+			public var typeName:String;
+			[Bindable]
+			public var barByType:ArrayCollection;
+			[Bindable]
+			public var pieByType:ArrayCollection = new ArrayCollection;
+			[Bindable]
+			public var listData:ArrayCollection= new ArrayCollection;
+			[Bindable]
+			private var hitMonth:String= '';
+			[Bindable]
+			public var compConList:ArrayCollection= new ArrayCollection;
+			
+			private function init():void
+			{
+				barByType = parentApplication.countArrc;
+				
+				var horAxisP:CategoryAxis = new CategoryAxis();
+        		horAxisP.categoryField = "P_MONTH";
+        		colChartID.horizontalAxis = horAxisP;
+        		var arrayFiel:Array = new Array();
+    			var yFielName:String = typeName;
+    			var columnSer:ColumnSeries = new ColumnSeries;
+	        	columnSer.xField = "P_MONTH";//
+	        	columnSer.yField = yFielName;
+        		columnSer.displayName = fieldName;		
+        		arrayFiel[0] = columnSer;
+	        	trace(arrayFiel);
+		        colChartID.series=arrayFiel;
+		        
+		        initPieChart();
+			}
+			private function initPieChart():void
+			{
+				for each(var monthItem:Object in monthArrc)
+				{
+					var pieObj:Object = new Object();
+					pieObj.P_MONTH = monthItem.P_MONTH;
+					for each(var lossItem:Object in parentApplication.countArrc)
+					{
+						if(monthItem.P_MONTH == lossItem.P_MONTH){
+							pieObj.COUNT_NUM = lossItem[typeName];
+							break;
+						}
+					}
+					pieByType.addItem(pieObj);
+				}
+			
+			}
+			private function displayGold(data:Object, field:String, index:Number, percentValue:Number):String {
+				if(data.COUNT_NUM!=0)
+				{
+	            var temp:String= (" " + percentValue).substr(0,6);
+	            var obj:Object = new Object();
+	            obj.P_MONTH = data.P_MONTH;
+	            obj.countNum = data.COUNT_NUM;
+	            obj.percent = temp+'%';
+	            if(!isContain(listData,obj))
+	            {
+	            	listData.addItem(obj);
+	            }
+	            return data.P_MONTH + ": " + '\n' + "Total: " + data.COUNT_NUM + '\n' + temp + "%";
+	   			}
+	   			return "";
+       		}
+       		private function isContain(listData:ArrayCollection,obj:Object):Boolean
+       		{
+       			for each (var item:Object in listData)
+       			{
+       				if(item.P_MONTH == obj.P_MONTH)
+       				{
+       					return true;
+       				}
+       			}
+       			return false;
+       		}
+			internal function doBack():void {
+            	PopUpManager.removePopUp(this);    
+            }
+            private function toPrint():void{
+				if(toggle.selectedIndex==0)
+				{
+					this.parentApplication.doPrint(barChart);
+				}
+				else if(toggle.selectedIndex==1)
+				{
+					this.parentApplication.doPrint(chartBox);
+				}
+				else if(toggle.selectedIndex==2)
+				{
+					this.parentApplication.doPrint(danymDataGrid);
+				}
+			}
+			
+			private function clickColumnChart(event:ChartItemEvent):void
+			{
+				detailId.htmlText = '';
+				var obj:Object = event.hitData.chartItem;
+	      		hitMonth = obj.xValue;
+	      		var yearStr:String = hitMonth.substr(0,4);
+	      		var monthStr:String = hitMonth.substr(4,2);
+	      		dictRO.getComplainConsults(fieldName,yearStr,monthStr,'','',parentApplication.selectRealmId.selectedItem.REALM_ID_CODE);
+			}
+			private function getComplainConsultsHandler(event:ResultEvent):void
+			{
+				compConList = event.result as ArrayCollection;
+			}
+			public function clickHandler(event:ListEvent):void
+			{
+				var obj:Object = event.itemRenderer.data;
+				dictRO.getComplainConsultDetail(fieldName,obj.ID);
+			}
+			private function getComplainConsultDetailHandler(event:ResultEvent):void
+			{
+				var obj:Object = event.result[0];
+				detailId.htmlText = "<Font color='#000000'><b>" + fieldName + "内容:</b>" + obj.CONTENT+ "\n" +
+									"<b>类型:</b>" + obj.TYPE+ "\n" +
+									"<b>状态:</b>" + obj.STATUS+ "\n" +
+									"<b>" + fieldName + "时间:</b>" + dateFormatId.format(obj.CALL_TIME)+ "\n" +
+									"<b>" + fieldName + "人:</b>" + obj.REPORTER + "\n" +
+									"<b>" + fieldName + "人手机号:</b>" + obj.REPORTER_CELL_PHONE + "\n" +
+									"<b>" + fieldName + "人固话:</b>" + obj.REPORTER_TELEPHONE + "\n" +
+									"<b>操作员:</b>" + obj.USER_NAME+ "\n" + "</Font>";
+			}
+			private function faultHandler(event:FaultEvent):void{
+	      	Alert.show(event.fault.faultString);
+	        }
+		]]>
+	</mx:Script>
+	<mx:DateFormatter id="dateFormatId"
+					  formatString="YYYY-MM-DD H:NN:SS"/>
+	<mx:HDividedBox width="100%" height="100%">
+	<mx:ViewStack id="vs" width="100%" height="100%" creationPolicy="all" >
+	   <mx:VBox id="barChart" icon="@Embed('icon_chart.png')" width="100%" height="90%" toolTip="柱状图">
+			<mx:ColumnChart id="colChartID" dataProvider="{barByType}" width="98%" showDataTips="true" height="98%" styleName="ChineseFont" itemClick="clickColumnChart(event)"/>
+			<mx:Legend dataProvider="{colChartID}" width="98%" direction="horizontal" enabled="true" legendItemClass="{com.reports.emergencyEventReports.components.LegendFontStyle}"/>
+		</mx:VBox>
+	   <mx:VBox id="chartBox" width="100%" height="100%" icon="@Embed('icon_chart.png')" toolTip="圆饼图" hideEffect="Fade" showEffect="Fade">
+			<mx:PieChart id="chart" 
+            height="100%" 
+            width="100%"
+            paddingRight="5" 
+            paddingLeft="5" 
+            showDataTips="true" 
+            dataProvider="{pieByType}"
+        	> 
+            <mx:series>
+                <mx:PieSeries  labelPosition="callout"
+                    nameField="P_MONTH"
+                    field="COUNT_NUM" 
+                    labelFunction="displayGold" styleName="ChineseFont"
+                >
+                    <mx:filters>
+                        <mx:Array/>
+                    </mx:filters>
+                </mx:PieSeries>
+            </mx:series>
+        </mx:PieChart>  
+        <mx:Legend dataProvider="{chart}" direction="horizontal" enabled="true"  width="98%" legendItemClass="{com.reports.emergencyEventReports.components.LegendFontStyle}"/>
+	   </mx:VBox> 
+	   <mx:VBox id="danymDataGrid" icon="@Embed('icon_grid.png')" width="100%" height="90%" toolTip="查看列表">
+		<mx:DataGrid id="eventCountId" width="100%" height="100%"  dataProvider="{listData}">
+			<mx:columns>
+                <mx:DataGridColumn dataField="P_MONTH" headerText="月份"/>
+                <mx:DataGridColumn dataField="countNum" headerText="数量"/>
+                <mx:DataGridColumn dataField="percent" headerText="百分比"/>
+            </mx:columns>
+		</mx:DataGrid>
+	   </mx:VBox>
+	</mx:ViewStack>
+	<mx:VDividedBox width="30%" height="100%">
+		 <mx:AdvancedDataGrid width="100%" height="50%" dataProvider="{compConList}" itemClick="clickHandler(event)">
+		 <mx:columns>
+		 	<mx:AdvancedDataGridColumn dataField="CONTENT" 
+		 		visible="true"
+			   headerText="{'标题('+ hitMonth +')'}"
+			   editable="false"
+			   sortable="false"
+			   width="100"
+			   dataTipField="CONTENT"
+			   showDataTips="true" />
+		 </mx:columns>
+		 </mx:AdvancedDataGrid>
+		 <mx:TextArea id="detailId" width="100%" height="50%" textAlign="left" editable="false">
+		 	
+		 </mx:TextArea>
+	</mx:VDividedBox>
+	</mx:HDividedBox>
+	<mx:ControlBar>
+    <mx:ToggleButtonBar dataProvider="{vs}" id="toggle"/>
+    <mx:Button label="打印" click="toPrint()" height="22"/>
+    <mx:Button visible="{toggle.selectedIndex==2}" label="导出EXCEL" click="this.parentApplication.loadExcel(eventCountId);" height="22"/>
+	<mx:Spacer width="50"/>
+    <mx:Button label="关闭" height="22" click="doBack();"/>
+	</mx:ControlBar>
+</mx:Panel>

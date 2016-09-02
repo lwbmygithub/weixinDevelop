@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" headerHeight="20" width="400" height="300" fontSize="12"
+	showCloseButton="true" close="PopUpManager.removePopUp(this);" creationComplete="init();">
+	<mx:Script>
+		<![CDATA[
+			import mx.events.CloseEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.controls.Alert;
+			import mx.collections.ArrayCollection;
+			import mx.managers.PopUpManager;
+			[Bindable]
+			public var exMsgArrc:ArrayCollection;
+			[Bindable]
+			public var exMsgSendArrc:ArrayCollection = new ArrayCollection();
+			private var userId:Number=0;
+			public var expertMark:String="";
+			
+			private function init():void{
+				userId=ExternalInterface.call("toGetUserId");
+//				eventId=818;
+			}
+			private function sendMsg():void{
+//				this.exMsgArrc = exMsgArrc;
+				exMsgSendArrc = new ArrayCollection();
+				var nullStr:String="";
+				for each(var item:Object in exMsgArrc){
+					var items:Object = new Object();
+					items.EM_MOBILE_NUM = item.cell;
+					if(item.cell!=null && item.cell !="" && item.cell!="null")
+					{
+						if(expertMark=="FROM_EXPERT" ){
+							items.MSG_CONTENTS = item.name+":你好, "+textContent.text+"。";
+						}
+						else{
+							items.MSG_CONTENTS = item.name+item.POST_NAME+":你好, "+textContent.text+"。";
+						}
+						exMsgSendArrc.addItem(items);
+					}
+					else
+					{
+						nullStr = nullStr+item.name+"、";
+					}
+				}
+				exMsgSendArrc.refresh();
+				if(exMsgSendArrc.length==0){
+					Alert.show("手机号均为空，不能进行发送操作");
+				}
+				else if(nullStr.length>0)
+				{
+					Alert.show(nullStr.substring(0,nullStr.length-1) + " 手机号为空，信息不能送达。", "", Alert.YES|Alert.NO, null, function(evt:CloseEvent):void{
+						if (evt.detail == Alert.YES){	
+							if(exMsgSendArrc.length>0)
+							{
+								exMsgSendArrc.refresh();
+								exMsgRO.expertSendexMsg(userId,exMsgSendArrc);
+							}	              
+						}
+						else if(evt.detail == Alert.NO){}
+					}, null, Alert.YES);
+				}
+				else
+				{
+					if(exMsgSendArrc.length>0)
+					{
+						exMsgSendArrc.refresh();
+						exMsgRO.expertSendexMsg(userId,exMsgSendArrc);
+					}
+				}
+//				exMsgRO.sendexMsg(779,0,template.text,exMsgSendArrc);
+			}
+			private function exMsgFeedBack(event:ResultEvent):void{
+				Alert.show(event.result.toString());
+				PopUpManager.removePopUp(this);
+			}
+			private function faultHandler(event:FaultEvent):void{
+				Alert.show("发送失败:"+event.formatToString);
+			}
+		]]>
+	</mx:Script>
+	<mx:RemoteObject id="exMsgRO"
+					 destination="addressListRO"
+					 fault="faultHandler(event)">
+		<mx:method name="expertSendexMsg"
+				   result="exMsgFeedBack(event)"/>
+	</mx:RemoteObject>
+	<mx:VBox height="100%" width="100%">
+	<mx:DataGrid height="100%" width="100%" dataProvider="{exMsgArrc}">
+		<mx:columns>
+			<mx:DataGridColumn dataField="name" headerText="姓名"/>
+			<mx:DataGridColumn dataField="cell" headerText="移动电话"/>
+		</mx:columns>
+	</mx:DataGrid>
+	<mx:HBox>
+	<mx:Label text="短信内容："/>
+	<mx:TextArea id="textContent" width="220" text=""/>
+	<mx:Button label="发送" click="sendMsg()"/>
+	</mx:HBox>
+	</mx:VBox>
+</mx:TitleWindow>

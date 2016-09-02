@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" headerHeight="20" borderThicknessLeft="4" borderThicknessRight="4" width="272" height="112" showCloseButton="true"
+	close="PopUpManager.removePopUp(this)" title="创建会议主题" fontSize="12" cornerRadius="16" alpha="1.0" creationComplete="init();">
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			import com.esri.solutions.flexviewer.SiteContainer;
+			import mx.managers.PopUpManager;
+			[Bindable]
+			public var ret:Boolean=false;
+			public function init():void{
+				ExternalInterface.addCallback("voiceConfID", voiceTopicHandler);
+				voiceTopicId.dispatchEvent(new MouseEvent(MouseEvent.MOUSE_DOWN));
+			}
+			private function voiceTopicClick():void{
+				if(voiceTopicId.text!=null && voiceTopicId.text!=''){
+						ret=ExternalInterface.call("CreateConf", voiceTopicId.text,'0');
+					if(!ret){
+						Alert.show("会议主题创建失败！");
+					}
+					else{
+						ExternalInterface.call("GetCallListInConf");
+						PopUpManager.removePopUp(this);
+						this.parentApplication.dispatchEvent(new CommonEvent(CommonEvent.TOPIC_SELECT,false,false,"SELECT_NEWCREATE_TOPIC"));
+					}
+				}
+			}
+			public function voiceTopicHandler(voiceConfID:String):void{
+				if(ret){
+					ExternalInterface.call("GetCallListInConf");
+					this.parentApplication.dispatchEvent(new CommonEvent(CommonEvent.VOICE_TOPIC,false,false,voiceConfID));
+				}
+			}
+			//test
+			public function voiceTopicHandlerTest():void{
+				this.parentApplication.dispatchEvent(new CommonEvent(CommonEvent.VOICE_TOPIC,false,false,"31"));
+			}
+		]]>
+	</mx:Script>
+	<!--<mx:Button x="30" y="52" label="确认test" click="voiceTopicHandlerTest();"/>-->
+	<mx:Button x="120" y="52" label="确认" click="voiceTopicClick();"/>
+	<mx:Button x="180" y="52" label="取消" click="PopUpManager.removePopUp(this);"/>
+	<mx:TextInput id="voiceTopicId" x="84" y="10" width="148" height="34" mouseFocusEnabled="true" enter="voiceTopicClick();"/>
+	<mx:Text x="10" text="会议主题" width="66" height="20" verticalCenter="-17" fontSize="14" fontWeight="bold"/>
+	
+</mx:TitleWindow>

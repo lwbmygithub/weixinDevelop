@@ -1,0 +1,406 @@
+/* CSS file */
+Application {
+   backgroundColor: #66ccff;
+   color:#ffffff;
+   fontSize:12;
+   paddingLeft:0;
+   paddingRight:2;
+   paddingTop:2;
+   paddingBottom:2;
+}
+
+.PanelForMid {
+   borderStyle: solid;
+   backgroundColor: none;
+   roundedBottomCorners: true;
+   cornerRadius: 8;
+   dropShadowEnabled: false;
+   borderThicknessLeft: 0;
+   headerHeight: 0;
+   borderThicknessTop: 0;
+   borderThicknessBottom: 0;
+   borderThicknessRight: 0;
+   paddingLeft:0;
+   paddingRight:0;
+   paddingTop:6;
+   paddingBottom:6;
+   backgroundImage:Embed(source="../images/N-middle.png");
+}
+.PanelForEffect {
+   borderAlpha: 0.22;
+   borderThicknessLeft: 0;
+   borderThicknessTop: 0;
+   borderThicknessBottom: 0;
+   borderThicknessRight: 0;
+   cornerRadius: 0;
+   headerHeight: 1;
+   backgroundAlpha: 0;
+   dropShadowEnabled: false;
+   borderStyle: none;
+}
+
+.leftWinStyle{
+	borderStyle: none;
+    paddingLeft:15;
+    paddingRight:2;
+    paddingTop:15;
+    paddingBottom:10;
+    backgroundImage:Embed(source="../images/N-left.png");
+}
+
+.rightWinStyle{
+	borderStyle: none;
+    paddingLeft:8;
+    paddingRight:15;
+    paddingTop:15;
+    paddingBottom:10;
+    backgroundImage:Embed(source="../images/N-right.png");
+}
+
+List {
+   backgroundImage:Embed(source="../images/background-2.jpg");
+   fontSize:12;
+   color:#000000;
+}
+
+Tree {
+	backgroundImage:none;
+}
+/*     
+Button {
+    upSkin:ClassReference('flexlib.skins.EnhancedButtonSkin');
+	overSkin:ClassReference('flexlib.skins.EnhancedButtonSkin');
+	downSkin:ClassReference('flexlib.skins.EnhancedButtonSkin');
+	disabledSkin:ClassReference('flexlib.skins.EnhancedButtonSkin');
+	selectedUpSkin:ClassReference('flexlib.skins.EnhancedButtonSkin');
+	selectedOverSkin:ClassReference('flexlib.skins.EnhancedButtonSkin');
+	selectedDownSkin:ClassReference('flexlib.skins.EnhancedButtonSkin');
+	selectedDisabledSkin:ClassReference('flexlib.skins.EnhancedButtonSkin');
+}
+
+*/
+
+.areaPanel {
+   border-thickness-left: 10;
+   border-thickness-top: 0;
+   border-thickness-bottom: 10;
+   border-thickness-right: 10;
+   background-color: #777777;
+   shadow-distance: 3;
+   shadow-direction: right;
+   title-style-name: "areaPanelTitle";
+   rounded-bottom-corners: true;
+}
+
+.areaPanelTitle 
+{
+   /*letter-spacing: 4;*/
+   /*color: #ffffff;*/
+   font-weight: bold;
+}
+
+.labelBox
+{
+   border-color: #FFFFFF;
+   border-style: solid;
+   corner-radius: 4;
+   /*color: #FFFFFF;*/
+}
+
+
+.subFormContainer
+{
+   border-color: #FFFFFF;
+   border-style: solid;
+   corner-radius: 10;
+   padding-left: 5;
+   padding-right: 5;
+   padding-top: 5;
+   padding-bottom: 5;
+  /* color: #FFFFFF;*/
+}
+
+
+
+.funkyButton
+{
+    corner-radii: 12, 0, 0, 12;
+    fill-colors: #557AB7, #91A8D0, #3A66AC, #7F9AC8;
+    fill-color-ratios: 0, 40, 80, 255;
+    
+    over-fill-colors:  #FF0000, #00FF00, #0000FF, #333333;
+    over-fill-color-ratios: 0, 80, 160, 255;
+    
+}
+
+.niceButton
+{
+    corner-radius: 12;
+	fill-colors: #557AB7, #91A8D0, #3A66AC, #7F9AC8;
+	over-fill-colors: #557AB7, #91A8D0, #3A66AC, #7F9AC8;
+	selected-fill-colors: #2025AD, #1D1B88, #3260A9, #383395;
+	fill-color-ratios: 0, 40, 80, 255;
+	fill-alphas: 1, 1, 1, 1;
+	color: #FFFFFF;
+	text-roll-over-color: #FFFFFF;
+	text-selected-color: #FFFFFF;
+	border-color: #190C81;
+	border-thickness:2;
+	font-size: 16;
+	background-alpha: 1;
+	highlight-alphas: 0, 0;
+	text-align: left;
+	padding-left: 10;
+}
+
+.customButtonStyle1{
+     cornerRadii: 8.8, 0, 0, 8.8;
+     highlightAlphas: 0.79, 0.2;
+   fillColors: #0066CC, #0066CC, #0066CC, #0066CC;
+   fillAlphas: 0.9, 0.9, 0.9, 0.9;
+   borderColor: #999999;
+   dropShadow: true;
+   shadowDistance: 1;
+   fontSize: 20;
+   fontWeight: normal;
+   	paddingTop:0;
+	paddingBottom:0;
+	height:38;
+}
+ 	
+.customButtonStyle2{
+     cornerRadii: 0, 0, 0, 0;
+    highlightAlphas: 0.79, 0.2;
+   fillColors: #0066CC, #0066CC, #0066CC, #0066CC;
+   fillAlphas: 0.9, 0.9, 0.9, 0.9;
+   borderColor: #999999;
+   dropShadow: true;
+   shadowDistance: 1;
+   fontSize: 20;
+   fontWeight: normal;
+   paddingTop:0;
+   paddingBottom:0;
+}
+
+.customButtonStyle3{
+     cornerRadii: 0, 8.8, 8.8, 0;
+    highlightAlphas: 0.79, 0.2;
+   fillColors: #0066CC, #0066CC, #0066CC, #0066CC;
+   fillAlphas: 0.9, 0.9, 0.9, 0.9;
+   borderColor: #999999;
+   dropShadow: true;
+   shadowDistance: 1;
+   fontSize: 20;
+   fontWeight: normal;
+   paddingTop:0;
+   paddingBottom:0;
+}
+
+.customButtonStyle4{
+   cornerRadius: 13;
+   highlightAlphas: 0.79, 0.2;
+   fillColors: #0066CC, #0066CC, #0066CC, #0066CC;
+   fillAlphas: 0.9, 0.9, 0.9, 0.9;
+   borderColor: #999999;
+   dropShadow: true;
+   shadowDistance: 1;
+   fontSize: 12;
+   fontWeight: normal;
+
+}
+
+Grid{
+	horizontalGap:0;
+	verticalGap:0;
+	paddingTop:8;
+	paddingBottom:0;
+	paddingLeft:2;
+	paddingRight:2;
+}
+GridItem{
+	horizontalGap:0;
+	verticalGap:0;
+	paddingTop:0;
+	paddingBottom:1;
+	paddingLeft:1;
+	paddingRight:0;
+}
+
+@font-face
+{
+    font-family:digifont;
+    src:url("../fonts/DS-DIGI.TTF");
+}
+
+.dialTextInput{
+     borderLeft:0;
+     borderThickness: 1;
+     color: #a66e0d;
+     fontSize: 18;
+     textAlign:right;
+     font-family:digifont;
+}
+ 	
+ 
+ToolTip {
+	fontSize: 12;
+	color: #ffffff;
+	borderThickness: 2;
+	borderColor: #0099ff;
+	cornerRadius: 10;
+	backgroundColor: #6699CC;
+	backgroundAlpha: 0.8;
+	borderAlpha: 0.5;
+}
+
+.ButtonStyle{
+   cornerRadius: 6;
+   highlightAlphas: 0.79, 0.2;
+   fillColors: #ebebeb, #ebebeb, #ebebeb, #ebebeb;
+   fillAlphas: 0.9, 0.9, 0.9, 0.9;
+   borderColor: #c7c7c7;
+   dropShadow: true;
+   shadowDistance: 1;
+   fontSize: 12;
+   fontWeight: normal;
+   color:#000000;
+}
+
+.ButtonForDail{
+   cornerRadius: 6;
+   highlightAlphas: 0.79, 0.2;
+   fillColors: #ebebeb, #ebebeb, #ebebeb, #ebebeb;
+   fillAlphas: 0.9, 0.9, 0.9, 0.9;
+   dropShadow: true;
+   shadowDistance: 1;
+   fontSize: 12;
+   fontWeight: normal;
+   color:#000000;
+   paddingLeft: 6;
+   borderColor: #ffffff;
+}
+
+ScrollBar
+{
+	borderColor: #787878;
+	cornerRadius: 0;
+	padding-top:1;
+	padding-bottom:1;
+	fillAlphas: 0, 0;
+
+	trackColors: #000000, #000000;
+	thumbUpSkin: Embed(source="../images/scroll/ScrollThumb_upSkin.png",
+		scaleGridLeft="4", scaleGridTop="4", scaleGridRight="8", scaleGridBottom="20");
+	thumbOverSkin: Embed(source="../images/scroll/ScrollThumb_overSkin.png",
+		scaleGridLeft="4", scaleGridTop="4", scaleGridRight="8", scaleGridBottom="20");
+	thumbDownSkin: Embed(source="../images/scroll/ScrollThumb_downSkin.png",
+		scaleGridLeft="4", scaleGridTop="4", scaleGridRight="8", scaleGridBottom="20");
+	trackSkin: Embed(source="../images/scroll/ScrollTrack_Skin.png",
+		scaleGridLeft="1", scaleGridTop="10", scaleGridRight="9", scaleGridBottom="123");
+	downArrowUpSkin: Embed(source="../images/scroll/ScrollArrowDown_upSkin.png");
+	downArrowOverSkin: Embed(source="../images/scroll/ScrollArrowDown_overSkin.png");
+	downArrowDownSkin: Embed(source="../images/scroll/ScrollArrowDown_downSkin.png");
+	upArrowUpSkin: Embed(source="../images/scroll/ScrollArrowUp_upSkin.png");
+	upArrowOverSkin: Embed(source="../images/scroll/ScrollArrowUp_overSkin.png");
+	upArrowDownSkin: Embed(source="../images/scroll/ScrollArrowUp_downSkin.png");
+	thumbIcon: Embed(source="../images/scroll/ScrollBar_thumbIcon.PNG");
+}
+
+HRule {
+   strokeWidth: 1;
+   	paddingTop:2;
+	paddingBottom:1;
+	paddingLeft:2;
+	paddingRight:2;
+}
+
+TitleWindow{
+ 	borderColor: #0099ff;
+ 	cornerRadius: 10;
+ 	roundedBottomCorners: true;
+ 	creationCompleteEffect: myEffect;
+}
+
+.windowStyles {
+    color: #000000;
+    letterSpacing: 2;
+}
+
+/*Alert {  
+	buttonStyleName: "alertButton"; 
+	borderColor: #0099ff;
+	backgroundColor: #ffffff;
+	backgroundAlpha: 0.75;
+	borderAlpha: 0.5;
+    dropShadowEnabled: true; 
+    shadowDistance: 5; 
+    shadowDirection: right; 
+    cornerRadius: 10; 
+    fontSize: 13;
+    fontWeight:bold;
+    color:#000000;
+   creationCompleteEffect: myEffect;
+} 
+
+.alertButton { 
+    letterSpacing: 0; 
+    fontSize: 12; 
+    cornerRadius: 10; 
+    fontWeight: normal; 
+    textRollOverColor: #0099ff; 
+    color: #000000; 
+} */
+
+Panel {
+	borderColor: #0099ff;
+ 	cornerRadius: 10;
+ 	roundedBottomCorners: true;
+ 	horizontalAlign:center;
+}
+
+/******Add by Mazole****2010-4-16**/
+Alert{   
+   messageStyleName:alertMessage;   
+/*   titleStyleName:alertTitle;   */
+ /*  fontFamily: VerdanaEmbedded;*/
+   	buttonStyleName: "alertButton"; 
+	borderColor: #0099ff;
+	backgroundColor: #ffffff;
+	backgroundAlpha: 0.75;
+	borderAlpha: 0.5;
+    dropShadowEnabled: true; 
+    shadowDistance: 5; 
+    shadowDirection: right; 
+    cornerRadius: 10; 
+    fontSize: 13;
+    fontWeight:bold;
+    color:#000000;
+  creationCompleteEffect: createAltEffect;
+/*   hideEffect:alertEffect; */
+   removedEffect:removeAltEffect;
+}   
+.alertMessage{   
+	fontSize:12px;   
+	fontFamily:宋体;   
+	color:#06D274;   
+	fontWeight:bold;   
+}   
+/*.alertTitle{   
+    fontSize:16px;   
+    fontFamily:宋体;   
+    color:#FF0000;   
+}
+@font-face{
+     src: local("Verdana");
+     fontFamily: VerdanaEmbedded;
+     fontWeight: bold;
+} 
+PopUpButton {
+   arrowButtonWidth: 17;
+   textRollOverColor: #0b333c;
+   textSelectedColor: #0b333c;
+}*/ 
+PopUpButton {
+   fillAlphas: 0.93, 0.36, 0.9, 0.64;
+   fillColors: #ffffff, #333366, #ccffff, #ccffff;
+}

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" verticalAlign="middle"
+    horizontalAlign="center"
+    xmlns:deptAddrList="com.addrList.components.*"
+    xmlns:expertAddrList="com.addrList.expertAddrList.*" creationComplete="inits()"
+    width="100%" height="100%" horizontalScrollPolicy="off">
+     <mx:Style source="com/addrList/assets/css/addrListCss.css"> 
+    </mx:Style>
+    <mx:Sequence id="myEffect"> 
+        <mx:Parallel> 
+            <mx:Zoom /> 
+            <mx:Fade /> 
+        </mx:Parallel> 
+        <mx:Rotate /> 
+    </mx:Sequence>
+    <!--<mx:frameConstructed>
+    	[Frame(extraClass="ilog.utils.LicenseHandler")]
+    </mx:frameConstructed>-->
+    <mx:Script>
+    	<![CDATA[
+    		import mx.controls.Alert;
+    		import com.addrList.components.voiceCallSmallPhone;
+	    	public var voiceCallSmPh:voiceCallSmallPhone=new voiceCallSmallPhone;
+	    	Alert.yesLabel="确定";
+	    	Alert.noLabel="取消";
+	    	private function inits():void{
+					voiceCallSmPh.init();
+				}
+    	]]>
+    </mx:Script>
+   <!--<mx:Style source="assets/css/Styles.css"/>-->
+  	<deptAddrList:deptAddrListView/>
+  	<!--<expertAddrList:experListView/>-->
+</mx:Application>

@@ -1,0 +1,63 @@
+<!DOCTYPE struts PUBLIC
+        "-//Apache Software Foundation//DTD Struts Configuration 2.0//EN"
+        "http://struts.apache.org/dtds/struts-2.0.dtd">
+<struts> 
+ 	
+<!-- 微信菜单功能-->
+<package name="weixinMenu"  extends="default" namespace="/weixin">
+	   
+	    <action name="getOneMenu" class="menuAction" method="getOneMenu">
+		 	<result name="success">getMenuSuccess.jsp</result>
+	    </action>
+	    
+	    <action name="createMenu" class="menuAction" method="createMenu">
+	    	<result name="success">getMenuSuccess.jsp</result>
+	    </action>
+	    
+	    <action name="createPersonalMenu" class="menuAction" method="createPersonalMenu">
+	    	<result name="success">getMenuSuccess.jsp</result>
+	    </action>
+	     
+</package>
+
+<!-- 微信主服务 -->
+<package name="weixinCore"  extends="struts-default" namespace="/weixin">
+
+		<action name="coreService" class="coreAction" method="coreService">
+	    	
+	    </action>
+	    
+</package>
+
+<!-- 微信web开发 -->
+<package name="weixinJSSDK" extends="json-default,struts-default" namespace="/weixin">
+
+			<action name="getData" class="weixinJSSDKAction" method="getData">
+					<result type="json"></result>
+			</action>
+			
+			<action name="handleSubmit" class="weixinJSSDKAction" method="handleSubmit">
+					<result name="success">upload.jsp</result>
+					<result name="input">upload.jsp</result>
+					<interceptor-ref name="fileUpload">
+                		<!-- 文件过滤 -->
+                	<param name="allowedTypes">image/bmp,image/png,image/gif,image/jpeg</param>
+                	<!-- 文件大小, 以字节为单位 -->
+                	<param name="maximumSize">5025956</param>
+            </interceptor-ref>
+            	<!-- 默认拦截器必须放在fileUpload之后，否则无效 -->
+            <interceptor-ref name="defaultStack" />
+			</action>
+			
+			<action name="handleAuthorize" class="weixinJSSDKAction" method="handleAuthorize">
+					<result name="success">authorizeSuccess.jsp</result>
+			</action>
+			
+			<action name="testQrCode" class="weixinJSSDKAction" method="testQrCode">
+					<result name="success">getQrCodeSuccess.jsp</result>
+			</action>
+			
+</package>
+
+
+</struts>

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<service id="remoting-service" 
+    class="flex.messaging.services.RemotingService">
+
+    <adapters>
+        <adapter-definition id="java-object" class="flex.messaging.services.remoting.adapters.JavaAdapter" default="true"/>
+    </adapters>
+
+    <default-channels>
+        <channel ref="my-amf"/>
+    </default-channels>
+	<destination id="corCountRemoteObject">
+    <properties>
+    <factory>spring</factory>
+    <source>corporationCountAction</source>
+    <scope>application</scope>
+    </properties>
+    </destination>
+
+    <destination id="checkMonthlyReportRemoteObject">
+    <properties>
+    <factory>spring</factory>
+    <source>CheckInfoAction</source>
+    <scope>application</scope>
+    </properties>
+    </destination>
+    
+    <destination id="corporationReports">
+    <properties>
+    <factory>spring</factory>
+    <source>corporationFlexAction</source>
+    <scope>application</scope>
+    </properties>
+    </destination>
+    
+    <destination id="emergencyEventFlexCountRO">
+		<properties>
+			<factory>spring</factory>
+			<source>emergencyEventFlexCount</source>
+			<scope>application</scope>
+		</properties>
+	</destination>
+    
+    <destination id="archiveRemoteObject">
+    <properties>
+    <factory>spring</factory>
+    <source>nscontentManageAction</source>
+    <scope>application</scope>
+    </properties>
+    </destination>
+    
+    <destination id="ruleCountRemoteObject">
+    <properties>
+    <factory>spring</factory>
+    <source>nsSecCheckRegisterCountAction</source>
+    <scope>application</scope>
+    </properties>
+    </destination>
+    <destination id="ruleCountRemoteObjects">
+    <properties>
+    <factory>spring</factory>
+    <source>nsSecCheckRegisterCountAction</source>
+    <scope>application</scope>
+    </properties>
+    </destination>
+    <destination id="certificateCountRemoteObject">
+    <properties>
+    <factory>spring</factory>
+    <source>certificateManagerAction</source>
+    <scope>application</scope>
+    </properties>
+    </destination>
+    <!-- 通讯录 Remote Object -->
+	<destination id="addressListRO">
+		<properties>
+			<factory>spring</factory>
+			<source>addressListManagerAction</source>
+			<scope>application</scope>
+		</properties>
+	</destination>
+	<!-- 题目出错率分析 -->
+		<destination id="EventAnalyzeAPI">
+	   <properties>
+	       <factory>spring</factory>
+			<source>ReportManagerAction</source>
+			<scope>application</scope>
+	   </properties>
+	</destination>
+	
+</service>

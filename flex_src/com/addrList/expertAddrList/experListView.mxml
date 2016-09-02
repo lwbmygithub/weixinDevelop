@@ -1,0 +1,441 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="100%" height="100%"
+	xmlns:m="com.sunwah.designLayout.managers.*"
+	creationComplete="init()">
+	<mx:RemoteObject id="addressListRO" destination="addressListRO">
+		<mx:method name="findExpertByNameorMajor" result="getExpertList_resultHandler(event)"/>
+		<mx:method name="expertLoadToExcel"/>
+	</mx:RemoteObject>
+	<mx:Script source="utils.as"/>
+
+	<mx:Script>
+		<![CDATA[
+		import mx.core.Application;
+		import mx.managers.PopUpManager;
+		import com.esri.solutions.flexviewer.components.checkBox.expertCheckBox.CheckBoxEvent;
+		import mx.controls.Alert;
+		import com.sunwah.designLayout.valueObjects.SelectedResCat;
+		import com.sunwah.components.checkTree.TreeCheckBoxEvent;
+		import mx.utils.StringUtil;
+		import mx.rpc.events.ResultEvent;
+		import mx.collections.ArrayCollection;
+		import mx.events.ListEvent;
+		import com.addrList.expertAddrList.ExpertDetailsPopUp;
+		import mx.managers.PopUpManager;
+		import com.esri.solutions.flexviewer.components.checkBox.expertCheckBox.ExpertListCheckBox;
+		import com.esri.solutions.flexviewer.components.checkBox.expertCheckBox.ExpertListCheckBoxEvent;
+		import mx.utils.URLUtil;
+		
+		[Bindable]
+		public var ExpertCheckBox:IFactory = new ClassFactory(com.esri.solutions.flexviewer.components.checkBox.expertCheckBox.ExpertListCheckBox);
+		[Bindable]
+		public var exMsgArrc:ArrayCollection = new ArrayCollection();
+		[Bindable]
+		private var expertsInfoSel:Array=new Array;//专家列表
+		[Bindable]
+		private var expertsInfoSelTem:Array=new Array;//过滤后的专家列表
+		private var E_E_currentSelectedCats:Array = new Array();
+		private var selectedArray:Array=new Array();
+		[Bindable]
+      	public var expertInfoList:ArrayCollection = new ArrayCollection;
+      	[Bindable]
+		public var expertDetails:ArrayCollection;
+		public var popWindow:ExpertDetailsPopUp;
+		private var port:int;
+       	private var serverName:String;
+        [Bindable]
+        private var serverUrl:String="";
+		
+		private function init():void
+		{
+			this.addEventListener(TreeCheckBoxEvent.CHECKBOX_CLICK,treeCheckBoxHandler);
+			addEventListener("ExpertListCheckBox",expertListCheckBoxHandler);
+			getFullUrladd();
+//			this.addEventListener("showSearchByExpertType", showSearchByExpertTypeHandler);
+		}	
+		
+		//获取当前url路径
+			private function getFullUrladd():void
+			{
+				var url:String = Application.application.url;
+				port = URLUtil.getPort(url);
+                serverName = URLUtil.getServerName(url);
+                serverUrl='http://'+serverName+':'+port+'/gz_security/ExcelExport.jsp';
+                  
+			}
+		
+		
+			/*******专家类型*********/
+			private function expertTypeLoadedHandler():void
+			{
+				expertTree.dataProvider=etm.getExpertTypeTreeXMLListColl();
+			}
+
+			private function treeCheckBoxHandler(event:TreeCheckBoxEvent):void
+			{
+					var expertXml:XML=event.data as XML;
+					var tempList:XMLList;
+					//判断短信列表是否需要清空----在此不需要清空短信列表Alice
+//					if (exMsgArrc!=null && exMsgArrc.length>0){
+//						exMsgArrc.removeAll();
+//					}
+					if (expertXml.@isBranch == "false")
+					{
+						tempList=new XMLList(expertXml);
+					}
+					else
+					{
+						tempList=new XMLList(expertXml..info);
+					}
+					
+					for each (var y:XML in tempList)
+					{
+						selectedArray.push(SelectedResCat.buildSelectedResCatByXML(y));
+					}
+					expertSelectHandler();
+			}
+			
+			private function expertSelectHandler():void
+			{
+//				var seletedResCats:Array=selectedArray;
+//				expertsInfoSel = new Array();
+//				expertsInfoSelTem = new Array();
+//				if(seletedResCats!=null && seletedResCats.length>0){
+//					var typecode:String=seletedResCats[0].typecode;
+//					E_E_currentSelectedCats=selectCatsHandler(seletedResCats, E_E_currentSelectedCats);
+//					for(var i:int=0;i<E_E_currentSelectedCats.length;i++){
+//						var tempArray:Array = ecbexm.getExpertsInfoByExpertType(E_E_currentSelectedCats[i].code);
+////						expertsInfoSel.addItem(tempArray[0]);
+//						if (tempArray != null)
+//							{
+//								expertsInfoSel=expertsInfoSel.concat(tempArray);
+//								for each(var item:Object in expertsInfoSel){
+//									item.isAdd=false;
+////									dispatchEvent(new ExpertListCheckBoxEvent("ExpertListCheckBox",item));
+//								}
+//							}
+//					}
+//				}
+				var seletedResCats:Array=selectedArray;
+				expertsInfoSel = new Array();
+				expertsInfoSelTem = new Array();
+				if(seletedResCats!=null && seletedResCats.length>0){
+					var typecode:String=seletedResCats[0].typecode;
+					E_E_currentSelectedCats=selectCatsHandler(seletedResCats, E_E_currentSelectedCats);
+					for(var i:int=0;i<E_E_currentSelectedCats.length;i++){
+						var tempArray:Array = ecbexm.getExpertsInfoByExpertType(E_E_currentSelectedCats[i].code);
+						if (tempArray != null)
+							{
+								expertsInfoSel=expertsInfoSel.concat(tempArray);
+							}
+					}
+				}
+				expertsInfoSelTem = expertsInfoSel;
+				expertGc.refresh();
+				if(StringUtil.trim(searchExpert.text).length>0)
+				{
+					expertFilter();
+				}
+			}
+			
+			public function selectCatsHandler(newSelect:Array, currSelect:Array):Array
+			{
+				for (var i:int=0; i < newSelect.length; i++)
+				{ 
+					var newAdd:Boolean=true;
+					var newcode:String=newSelect[i].code;
+					var newstate:String=newSelect[i].state;
+					for (var o:int=currSelect.length - 1; o >= 0; o--)
+					{
+						var currcode:String=currSelect[o].code;
+						var currstate:String=currSelect[o].state;
+						if (newcode == currcode)
+						{
+							newAdd=false;
+							if (newstate == "unchecked")
+							{
+								currSelect.splice(o, 1);
+							}
+						}
+					}
+					if (newAdd)
+					{
+						currSelect.push(newSelect[i]);
+					}
+				}
+				return currSelect;
+			}
+			
+			//条件查找
+			private function findExpertInfoByNameOrMajor():void
+			{
+//				var name:String=StringUtil.trim(expertName.text);
+//				var major:String=StringUtil.trim(expertMajor.text);
+//				//var speciality:String=StringUtil.trim(expertSpeciality.text);
+//				addressListRO.findExpertByNameorMajor(name,major);
+//				if(exMsgArrc!=null && exMsgArrc.length>0){
+//					exMsgArrc.removeAll();
+////					exMsgGc.refresh();
+//				}
+			}
+			//条件查询返回结果
+			private function getExpertList_resultHandler(event:ResultEvent):void
+			{
+				expertsInfoSel.splice(0,expertsInfoSel.length);
+				expertInfoList= event.result as ArrayCollection;
+				for each(var item:Object in expertInfoList){
+					expertsInfoSel.push(item);
+				}
+				expertGc.refresh();
+			}
+			
+			public function clickHandler(event:ListEvent):void
+			{
+				var obj:Object = event.itemRenderer.data;
+				if(obj.id!=null){
+					expertDetails = new ArrayCollection( [
+					{ Info: "专家名字：", Details: obj.name },
+					{ Info: "专家描述：", Details: obj.description },
+					{ Info: "所学专业：", Details: obj.learnMajor },
+					{ Info: "从事专业：", Details: obj.workMajor },
+					{ Info: "所属单位：", Details: obj.corName },
+					{ Info: "单位地址：", Details: obj.corAddr },
+					{ Info: "现地址：", Details: obj.homeAddr },
+					{ Info: "现住址区域:",Details: obj.realm},
+					{ Info: "联系电话：", Details: obj.phone },
+					{ Info: "手机：", Details: obj.cell },
+					{ Info:"专家特长:",Details: obj.speciality}
+					]);
+				showTitleWindow();
+				}
+			}
+			
+			//弹出详细信息窗口
+			private function showTitleWindow():void
+			{
+				if(popWindow==null)
+				popWindow=ExpertDetailsPopUp(PopUpManager.createPopUp(this, ExpertDetailsPopUp, false));
+				popWindow.visible=true;
+				popWindow.expertDetails=expertDetails;
+			}
+			//全选
+			private function selectAll(e:MouseEvent):void{
+				if(selectAllExpert.selected==true){
+					for each(var itemSel:Object in expertsInfoSelTem){
+					if(!itemSel.isAdd)
+					{
+						exMsgArrc.addItem(itemSel);
+					}
+					itemSel.isAdd = selectAllExpert.selected;
+					//查找出之前列中已经选上的专家,并且删除掉
+//					for(var i:int=0;i<exMsgArrc.length;i++){
+//						if(exMsgArrc.getItemAt(i).name==itemSel.name &&
+//						exMsgArrc.getItemAt(i).typeName==itemSel.typeName)
+//						{
+//							exMsgArrc.removeItemAt(i);
+//						}
+//					}
+					
+					}
+				}else{
+					for each(var itemSel:Object in expertsInfoSelTem){
+						if(itemSel.isAdd)
+						{
+							itemSel.isAdd = selectAllExpert.selected;
+							for(var i:int=0;i<exMsgArrc.length;i++){
+								if(exMsgArrc.getItemAt(i).id==itemSel.id && exMsgArrc.getItemAt(i).owner==itemSel.owner && exMsgArrc.getItemAt(i).name==itemSel.name)
+								{
+									exMsgArrc.removeItemAt(i);
+								}
+							}
+						}
+					}
+//					exMsgArrc.removeAll();
+//					exMsgGc.refresh();
+				}
+				exMsgArrc.refresh();
+				expertGc.refresh();
+			}
+			//单个选择
+			private function expertListCheckBoxHandler(e:ExpertListCheckBoxEvent):void{
+				var voiceSelArr:Array = new Array();
+				if(e.checkMonitorPoint.isAdd){
+					exMsgArrc.addItem(e.checkMonitorPoint);
+					voiceSelArr.push({NAME_C:e.checkMonitorPoint.name,
+			      		CONTACTOR_MOBILE:e.checkMonitorPoint.cell,DEPT_NAME:e.checkMonitorPoint.corName,
+			      		CONTACTOR_TEL:e.checkMonitorPoint.phone,ADD_VALUE:e.checkMonitorPoint.isAdd,
+			      		PEOPLE_ID:e.checkMonitorPoint.id,MARK_FROM:"EXPERT_ADDR"});
+					}
+				else{
+					voiceSelArr.push({NAME_C:e.checkMonitorPoint.name,
+			      		CONTACTOR_MOBILE:e.checkMonitorPoint.cell,DEPT_NAME:e.checkMonitorPoint.corName,
+			      		CONTACTOR_TEL:e.checkMonitorPoint.phone,ADD_VALUE:e.checkMonitorPoint.isAdd,
+			      		PEOPLE_ID:e.checkMonitorPoint.id,MARK_FROM:"EXPERT_ADDR"});
+					for(var i:int=0;i<exMsgArrc.length;i++)
+					{
+						if(exMsgArrc.getItemAt(i).name==e.checkMonitorPoint.name &&
+						exMsgArrc.getItemAt(i).typeName==e.checkMonitorPoint.typeName)
+						{
+							exMsgArrc.removeItemAt(i);
+						}
+					}
+				}
+				ExternalInterface.call("sendVoiceList",voiceSelArr);
+				selectAllExpert.selected=false;
+			}
+			//弹出短信发送窗口
+			private function msgBtnClick():void{
+				var exMsgDetailsWin:exDetailPopUpWins = new exDetailPopUpWins();
+				exMsgDetailsWin.exMsgArrc = exMsgArrc;
+				exMsgDetailsWin.expertMark="FROM_EXPERT";
+				PopUpManager.addPopUp(exMsgDetailsWin,this,true);
+				PopUpManager.centerPopUp(exMsgDetailsWin);
+			}
+			
+			//发邮件
+			public function sendMail():void {
+				var nullStr:String="";   //邮件为空的人
+				if(exMsgArrc!=null && exMsgArrc.length>0) {
+					var str:String = "mailto:";
+					for(var i:int=0; i < exMsgArrc.length; i++) {
+						if(exMsgArrc.getItemAt(i).email != null)
+						{
+							str = str + exMsgArrc.getItemAt(i).email +";";
+						}
+						else
+						{
+							nullStr = nullStr+exMsgArrc.getItemAt(i).name + "\n";
+						}
+					}
+					if(str.length > 7)
+					{
+						var closeSucUrl:URLRequest=new URLRequest(str);
+	   				    navigateToURL(closeSucUrl,"_self");
+					}
+					
+					}
+				else{
+					Alert.show("请选择需要发送邮件的用户名字！");
+				}	
+				if(nullStr!="")
+				{
+					Alert.show(nullStr+"E-mail为空");
+				}	
+			}
+			
+			//选择导出的列
+			public function selectHeaderText(i:int ):void{
+				this["SelectHeaderText"+i].visible = ! this["SelectHeaderText"+i].visible;	
+			}
+			private function expertFilter():void {
+				expertsInfoSelTem = new Array();
+				expertsInfoSel.filter(expertFilte);
+				expertGc.refresh();
+			}
+			 private function expertFilte(item:Object, idx:uint, arr:Array):Boolean { 
+			 	var searchText:String=StringUtil.trim(searchExpert.text);
+                if (item.workMajor.match(new RegExp(searchText, "i")) || item.name.match(new RegExp(searchText, "i"))) { 
+                    expertsInfoSelTem.push(item);
+                    return true; 
+                } else { 
+                    return false; 
+                } 
+            } 
+			
+		]]>
+	</mx:Script>
+	
+	<!--<mx:VBox width="100%" height="100%" verticalGap="2" backgroundColor="white">
+	<mx:HBox width="100%" height="5%" backgroundColor="white">
+	<mx:Text text="专家姓名："/>
+	<mx:TextInput id="expertName"/>
+	<mx:Text text="专家专业："/>
+	<mx:TextInput id="expertMajor"/>
+	
+	<mx:Text text="专家特长："/>
+	<mx:TextInput id="expertSpeciality"/>
+	<mx:Button label="查找" click="findExpertInfoByNameOrMajor();"/>
+	</mx:HBox>-->
+	<mx:HDividedBox horizontalGap="5" width="100%" height="100%" backgroundColor="#ffffff">
+	<mx:VBox width="24%" height="100%">
+		<mx:Text text="点击相应的类型以查询专家"/>
+		<mx:Tree id="expertTree" labelField="@label" width="100%" height="100%" itemRenderer="com.sunwah.components.checkTree.CheckTreeDemoRenderer"
+						 folderOpenIcon="{null}" folderClosedIcon="{null}" showRoot="false"/>
+	</mx:VBox>
+
+	<mx:VBox id="exClassfiedByExpertType" width="75%" height="100%" creationPolicy="all">
+	 <mx:ControlBar paddingTop="0" paddingBottom="0">
+				 	<mx:ToggleButtonBar id="exTg" dataProvider="{exVS}"/>
+				 	<mx:HBox horizontalGap="-9" width="{exTg.selectedIndex!=0?0:210}" visible="{exTg.selectedIndex!=1}">
+				 	<mx:Label text="从事专业/姓名：" visible="{exTg.selectedIndex!=1}" width="{exTg.selectedIndex!=0?0:110}"/>
+					<mx:TextInput text="" id="searchExpert" width="{exTg.selectedIndex!=0?0:100}" change="expertFilter();" backgroundColor="0xffffff" color="0x000000" visible="{exTg.selectedIndex!=1}"/>
+				 	</mx:HBox>
+	</mx:ControlBar>
+	<mx:ViewStack id="exVS" width="100%" height="100%" creationPolicy="all">
+		<mx:VBox label="专家列表" width="100%" height="100%">
+			<mx:AdvancedDataGrid id="adgClassfiedByExpertType" width="100%" height="95%" sortExpertMode="true" defaultLeafIcon="undefined" displayItemsExpanded="true"
+								 itemClick="clickHandler(event)" initialize="expertGc.refresh();">
+				<mx:dataProvider>
+					<mx:GroupingCollection id="expertGc" source="{expertsInfoSelTem}">
+						<mx:Grouping>
+							<mx:GroupingField name="typeName"/>
+						</mx:Grouping>
+					</mx:GroupingCollection>
+				</mx:dataProvider>
+				<mx:columns>
+					<mx:AdvancedDataGridColumn itemRenderer="{ExpertCheckBox}" headerText="姓名" width="100"/>
+					<mx:AdvancedDataGridColumn dataField="typeName" headerText="专家类型" showDataTips="true" dataTipField="typeName"/>
+					<mx:AdvancedDataGridColumn dataField="workMajor" headerText="从事专业" showDataTips="true" dataTipField="workMajor"/>
+					<mx:AdvancedDataGridColumn dataField="cell" headerText="移动电话" showDataTips="true" dataTipField="cell"/>
+					<mx:AdvancedDataGridColumn dataField="phone" headerText="固定电话" showDataTips="true" dataTipField="phone"/>
+					<mx:AdvancedDataGridColumn dataField="email" headerText="E-mail" showDataTips="true" dataTipField="email"/>
+					<mx:AdvancedDataGridColumn dataField="corName" headerText="专业单位" showDataTips="true" dataTipField="corName"/>
+					<mx:AdvancedDataGridColumn dataField="realm" headerText="现住址区域" showDataTips="true" dataTipField="realm"/>
+				</mx:columns>
+			</mx:AdvancedDataGrid>
+			<mx:CheckBox id="selectAllExpert" click="selectAll(event);" label="全选"/>
+		</mx:VBox>
+		<mx:VBox label="发送列表" width="100%" height="100%">
+			<mx:DataGrid id="exMsgAdgId" width="100%" height="100%" dataProvider="{exMsgArrc}">
+				<mx:columns>
+					<mx:DataGridColumn dataField="name" headerText="姓名" width="140" id="SelectHeaderText1" showDataTips="true" dataTipField="name"/>
+					<mx:DataGridColumn dataField="typeName" headerText="专家类型" id="SelectHeaderText2" showDataTips="true" dataTipField="typeName"/>
+					<mx:DataGridColumn dataField="workMajor" headerText="从事专业" showDataTips="true" dataTipField="workMajor"/>
+					<mx:DataGridColumn dataField="cell" width="80" headerText="移动电话" id="SelectHeaderText3" showDataTips="true" dataTipField="cell"/>
+					<mx:DataGridColumn dataField="phone" width="80" headerText="固定电话" id="SelectHeaderText4" showDataTips="true" dataTipField="phone"/>
+					<mx:DataGridColumn dataField="email" headerText="E-mail" id="SelectHeaderText5" showDataTips="true" dataTipField="email"/>
+					<mx:DataGridColumn dataField="corName" headerText="专业单位" id="SelectHeaderText6" showDataTips="true" dataTipField="corName"/>
+					<mx:DataGridColumn dataField="realm" headerText="现住址区域" id="SelectHeaderText7" showDataTips="true" dataTipField="realm"/>
+				</mx:columns>
+		   </mx:DataGrid>
+		   <mx:HBox>
+		   <mx:Button visible="{exTg.selectedIndex==1}" label="发送短信" click="msgBtnClick();"/>
+		 	<mx:Button visible="{exTg.selectedIndex==1}" label="发送邮件" click="sendMail();"/>
+		 	<mx:Button visible="{exTg.selectedIndex==1}" label="导出EXCEL" click="loadDGInExcel(exMsgAdgId,serverUrl);"/>
+		 	<mx:PopUpButton label="选择导出信息" visible="{exTg.selectedIndex==1}" >
+				<mx:popUp>			
+					<mx:VBox backgroundColor="white">
+					<mx:HBox>
+						<mx:CheckBox label="姓名" click="selectHeaderText(1);" selected="true"/>
+						<mx:CheckBox label="专家类型" click="selectHeaderText(2);" selected="true"/>
+						<mx:CheckBox label="移动电话" click="selectHeaderText(3);" selected="true"/>
+						<mx:CheckBox label="固定电话" click="selectHeaderText(4);" selected="true"/>
+					</mx:HBox>
+					<mx:HBox>
+						<mx:CheckBox label="E—mail" click="selectHeaderText(5);" selected="true"/>
+						<mx:CheckBox label="专业单位" click="selectHeaderText(6);" selected="true"/>
+						<mx:CheckBox label="现住址区域" click="selectHeaderText(7);" selected="true"/>
+					</mx:HBox>				
+					</mx:VBox>			
+			   </mx:popUp>
+		  </mx:PopUpButton>
+		   </mx:HBox>
+		</mx:VBox>
+	</mx:ViewStack>
+	</mx:VBox>
+	</mx:HDividedBox>
+	<!--</mx:VBox>-->
+	<m:ExpertTypeManager id="etm" expertTypeTreeLoaded="expertTypeLoadedHandler()"/>
+	<m:ExpertClassifyByExpertTypeManager id="ecbexm"/>
+</mx:Canvas>

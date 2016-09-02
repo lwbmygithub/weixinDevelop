@@ -1,0 +1,793 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" width="100%" height="100%" backgroundColor="#69CCFF" creationComplete="init()">
+<mx:Style>  
+     .mylegend  
+{   
+        fontFamily:"宋体";   
+        fontSize:12;   
+     }   
+    .usual  
+{   
+        fontFamily:"宋体";   
+        fontSize:12;   
+     } 
+     .toolTip{
+     	fontSize:12;
+     }
+</mx:Style> 
+<mx:Script>
+    	<![CDATA[
+    		import mx.charts.chartClasses.Series; 
+    		import mx.messaging.channels.StreamingAMFChannel;
+    		import mx.rpc.events.ResultEvent;
+    		import mx.rpc.events.FaultEvent;
+    		import mx.collections.ArrayCollection;
+    		import mx.controls.*;
+    		import mx.charts.HitData;
+            import mx.effects.easing.*;
+            import mx.formatters.*;
+            import mx.charts.series.items.PieSeriesItem;
+            import mx.charts.series.items.ColumnSeriesItem;
+            import mx.charts.events.ChartItemEvent; 
+            import mx.events.ValidationResultEvent;     //引用ValidationResult Event类
+            public var bt_change:String,BT_Sum_left:int,BT_Sum_right:int,BT_Sum_A:int,BT_Sum_2:int,BT_Sum_3:int,BT_Sum_All:int,BT_Sum_All1:int,BT_Temp:int,BT_Wrong_Temp:int,BT_Other_All:int,ColumnChartIndex:int,ColumnChartIndexOld:int=999,DataGridRunOnce:int=1;
+            private var _selectedRegion:Object;
+            public var myCheckType:int=1;
+            public var myStartYear:int,myEndYear:int;
+            private var pieExplodeArray:ArrayCollection=new ArrayCollection();
+            private var leftPieArrayNow:ArrayCollection=new ArrayCollection();
+            private var rightPieArrayNow:ArrayCollection=new ArrayCollection();
+            private var PieChartArray:ArrayCollection=new ArrayCollection();
+            private var ClassSelect:ArrayCollection=new ArrayCollection();
+           //时间下拉框
+            private var TimeSelect:ArrayCollection=new ArrayCollection();
+
+            [Bindable]
+            private var columnArrayCollection:ArrayCollection=new ArrayCollection();
+            public function init():void{
+            	mx.styles.StyleManager.getStyleDeclaration("ToolTip").setStyle("fontSize",14); 
+                var t_date:Date=new Date();
+                var date:Date=new Date();
+                var year:Number=date.getFullYear();
+                var month:Number=date.getMonth();
+             //   endMonthInput.selectedIndex=month;
+                var day:Number = date.getDate();
+              //  t_date.setFullYear(year,month,day);
+    	    	//startDateField.selectedDate=t_date;
+    	    	//endDateField.selectedDate=date;
+    	    	var dateFormatter:DateFormatter = new DateFormatter();
+                dateFormatter.formatString= "YYYY-MM-DD";
+                var str_start:String =dateFormatter.format(t_date)+" 00:00:00"; 
+                var str_end:String =dateFormatter.format(date)+" 23:59:59"; 
+                EventAnalyzeApiRO.findSelection("1","1",1);
+                 EventAnalyzeApiRO.findTimeSelection();
+                
+                //getData();
+            }
+            public function getData():void{
+            	myCheckType=parseInt(birth_txt.text);
+            	if(numValid.validate().type!=ValidationResultEvent.VALID){
+            		Alert.show("请输入正确的题目数");
+            	}else{
+            		hintbox.visible=false;
+              //   EventAnalyzeApiRO.findEventReport("1",cb1.text.toString(),myCheckType,timeSelect.text.toString());
+                                 EventAnalyzeApiRO.findEventReport("1",cb1.text.toString(),myCheckType,timeSelect.selectedIndex);
+     
+            }
+            
+           
+        }
+              public function checkHandle():void     //验证处理函数
+            {
+            if(numValid.validate().type!=ValidationResultEvent.VALID)                                                                 //验证通过
+            {
+                Alert.show("not ok");       //提示"验证成功"
+            }
+           
+           
+            }
+            //选择查询
+             public function selectType():void{
+             	  checkHandle();
+                  Alert.show(birth_txt.text);
+               	  
+               	  
+            }
+            
+            public function set selectedRegion(item:Object):void
+            {
+            	
+           
+            	
+              _selectedRegion = item;
+              var myitem:HitData=item as HitData;
+              var index:int = -1;
+              if(bt_change=="BingT_1"){
+              pieExplodeArray=PieChart_expenses;
+              //Alert.show(expenses[ColumnChartIndex]["COLTIME"].toString());
+              // EventAnalyzeApiRO.findReportPiechartData2("自然灾害",201204,2,2);
+              EventAnalyzeApiRO.findReportPiechartEvent2(item.EVENTTYPE,columnArrayCollection[ColumnChartIndex]["COLTIME"],myCheckType);
+                for (var i:int=0; i < pieExplodeArray.length && index == -1; i++)
+                  {
+                    if(pieExplodeArray[i].EVENTTYPE == item.EVENTTYPE)
+                          index=i;
+                  }
+                var explodeData:Array = [];
+                explodeData[index] = 0.15;
+               
+             //  RemObj_DataGrid.Return_DataGridData(item.eventType,expenses[ColumnChartIndex]["myYear"],expenses[ColumnChartIndex]["myMonth"],2,2);
+              }else if(bt_change=="BingT_2"){
+               dgPie.visible=false;
+			//item.TOTAL 获取数据
+              pieExplodeArray=PieChart_2_expenses;
+               //Alert.show(item.TOTAL);
+             if(item.QUESTIONCONTENT!="其他")
+              {
+              	 
+              EventAnalyzeApiRO.findReportPiechartEvent3("1",item.TID,0);
+              }
+             else
+             {
+             	 
+              EventAnalyzeApiRO.findReportPiechartEvent3("2",item.TID,0);
+             }
+              for (var i:int=0; i < pieExplodeArray.length && index == -1; i++)
+                  {
+                    if(pieExplodeArray[i].EVENTTYPE == item.EVENTTYPE)
+                          index=i;
+                  }
+                var explodeData:Array = [];
+                explodeData[index] = 0.15;
+                BingT_2.series[0].perWedgeExplodeRadius = explodeData;
+              //  RemObj_DataGrid.Return_DataGridData3(item.eventType,expenses[ColumnChartIndex]["myYear"],expenses[ColumnChartIndex]["myMonth"],2,2);
+              }else if(bt_change=="BingT_3"){
+              	pieExplodeArray=PieChart_3_expenses;
+                //RemObj_PieChart.Return_PieChartData3(item.eventType,expenses[ColumnChartIndex]["myYear"],expenses[ColumnChartIndex]["myMonth"],2,2);
+                for (var i:int=0; i < pieExplodeArray.length && index == -1; i++)
+                  {
+                    if(pieExplodeArray[i].EVENTTYPE == item.EVENTTYPE)
+                          index=i;
+                  }
+                var explodeData:Array = [];
+                explodeData[index] = 0.15;
+                BingT_3.series[0].perWedgeExplodeRadius = explodeData;
+              //	RemObj_DataGrid.Return_DataGridData4(item.eventType,expenses[ColumnChartIndex]["myYear"],expenses[ColumnChartIndex]["myMonth"],2,2);
+
+              }
+                
+               // ZhuZT.visible=false;
+               // ZhuZT_Lengend.visible=false;
+                //Grid_DG.visible=true;             
+               }         
+            private function regionChange(item:Object,bt:String):void
+            {   bt_change=bt;
+                selectedRegion = item;
+                
+            }
+            private function BT_1_getSliceLabel(item:Object, arg2:String, arg3:Number, arg4:Number):String
+            {   
+                return item == null?"":item.QUESTIONCONTENT + "\n所占比例：" + int(item.WRONG*10000/item.TOTAL)/100 + " %";
+            }
+            private function BT_2_getSliceLabel(item:Object, arg2:String, arg3:Number, arg4:Number):String
+            {   
+                return item == null?"":"题目"+"做过"+item.TOTAL+"次，出错"+ "\n所占比例：" + int(item.WRONG*10000/BT_Sum_All1)/100 + " %";
+            }
+             private function BT_3_getSliceLabel(item:Object, arg2:String, arg3:Number, arg4:Number):String
+            {   
+            	
+                return item == null?"":"选项"+item.BITEM + "\n所占比例：" +  int(item.NUM*10000/BT_Sum_3)/100 + " %";
+            }
+            
+            
+            
+            
+               private function BT_dgPie_getSliceLabel(item:Object, arg2:String, arg3:Number, arg4:Number):String
+            {   
+            	
+                return item == null?"":"选项"+item.BITEM + "\n所占比例：" +  int(item.NUM*10000/BT_Sum_2)/100 + " %";
+            }
+            
+            
+                private function BT_Pie_getSliceLabel(item:Object, arg2:String, arg3:Number, arg4:Number):String
+            {   
+                return item == null?"":"选项"+item.BITEM + "\n所占比例：" +  int(item.NUM*10000/BT_Sum_3)/100 + " %";
+            }
+            private function BT_A_getSliceLabel(item:Object, arg2:String, arg3:Number, arg4:Number):String
+            {   
+                return item == null?"":item.REALM + "\n所占比例：" + int(item.EVENTCOUNT*10000/BT_Sum_A)/100 + " %";
+            }
+    		[Bindable]
+    		public var expenses:ArrayCollection=new ArrayCollection();
+    		[Bindable]
+    	    public var PieChart_expenses:ArrayCollection=new ArrayCollection();
+    	    [Bindable]
+    	    public var PieChart_expenses_A:ArrayCollection=new ArrayCollection();
+    	    [Bindable]
+    	    public var PieChart2_expenses:ArrayCollection=new ArrayCollection();
+    	    [Bindable]
+    	    public var PieChart_2_expenses:ArrayCollection=new ArrayCollection();
+    	     [Bindable]
+    	    public var PieChart_3_expenses:ArrayCollection=new ArrayCollection();
+    	   [Bindable]
+    	    public var DataGrid_expenses:ArrayCollection=new ArrayCollection();
+    	    [Bindable]
+    	    public var DataGrid2_expenses:ArrayCollection=new ArrayCollection();
+            //当返回结果时调用该函数
+            private function getData_Result(evt:ResultEvent):void
+            {
+            	
+             	expenses = evt.result as ArrayCollection;
+            	
+            	PieChart_expenses.removeAll();
+            	PieChart_2_expenses.removeAll();
+            	PieChart_3_expenses.removeAll();
+            }
+            //当返回错误时调用该函数
+            private function getData_Fault(evt:FaultEvent):void
+            {
+            	mx.controls.Alert.show(evt.fault.toString());
+            }
+            //当返回PieChart结果时调用该函数
+            private function PieChart_Result(evt:ResultEvent):void
+            {
+            	PieChart_expenses = evt.result as ArrayCollection;
+            //	trace(PieChart_expenses);
+            	for(var p:int=0;p<PieChart_expenses.length;p++){
+            	BT_Sum_left+=int(PieChart_expenses[p]["happenTimes"]);
+            	}
+            	//mx.controls.Alert.show(PieChartArray.length as String);
+            }
+            //当返回错误时调用该函数
+            private function PieChart_Fault(evt:FaultEvent):void
+            {
+            	mx.controls.Alert.show(evt.fault.toString());
+            }
+            private function PieChart2_Result(evt:ResultEvent):void
+            {
+            	PieChart_2_expenses = evt.result as ArrayCollection;
+            	BT_Sum_2=0;
+            	for(var q:int=0;q<PieChart_2_expenses.length;q++){
+            	BT_Sum_2+=int(PieChart_2_expenses[q]["happenTimes"]);
+            	}
+ 
+            	//mx.controls.Alert.show(PieChartArray.length as String);
+            	//pieExplodeArray=PieChartArray;
+            }
+            //当返回错误时调用该函数
+            private function PieChart2_Fault(evt:FaultEvent):void
+            {
+            	mx.controls.Alert.show(evt.fault.toString());
+            }
+            private function PieChart3_Result(evt:ResultEvent):void
+            {
+            	BT_Sum_3=0;
+            	PieChart_3_expenses = evt.result as ArrayCollection;
+            	for(var q:int=0;q<PieChart_3_expenses.length;q++){
+            	BT_Sum_3+=int(PieChart_3_expenses[q]["happenTimes"]);
+            	}
+             	//mx.controls.Alert.show(PieChartArray.length as String);
+            	//pieExplodeArray=PieChartArray;
+            }
+            //当返回错误时调用该函数
+            private function PieChart3_Fault(evt:FaultEvent):void
+            {
+            	mx.controls.Alert.show(evt.fault.toString());
+            }
+              private function DataGrid_Result(evt:ResultEvent):void
+            {
+            	DataGrid_expenses = evt.result as ArrayCollection;
+            	//DGPanelTitleLeft.title="本期  共"+DataGrid_expenses.length+"条";
+            }
+            
+            private function list_labelFunction(item:Object):String
+            {
+            	return item.label+"共错"+int(item.data*10000/BT_Sum_All1)/100+"%,"+"总数"+BT_Sum_All;
+            	
+            }
+           
+           
+			private function getLocation(event:MouseEvent):void{
+
+     //   trace("localX:" + event.localX + ",localY:" + event.localY);  //相对于组件的坐标,(如果在button上，则相对于button)
+
+        //trace("stageX:" + event.stageX + ",stageY:" + event.stageY);  //相对于整个应用的坐标
+
+       Alert.show("localX:" + event.localX + ",localY:" + event.localY);
+       Alert.show("stageX:" + event.stageX + ",stageY:" + event.stageY);
+
+     }
+
+
+            
+            //当返回错误时调用该函数
+            private function DataGrid_Fault(evt:FaultEvent):void
+            {
+            	mx.controls.Alert.show(evt.fault.toString());
+            }
+            private function DataGrid2_Result(evt:ResultEvent):void
+            {
+            	DataGrid2_expenses = evt.result as ArrayCollection;
+            	 
+            }
+            //当返回错误时调用该函数
+            private function DataGrid2_Fault(evt:FaultEvent):void
+            {
+            	mx.controls.Alert.show(evt.fault.toString());
+            }
+            public function showMyPie(evt:ChartItemEvent):void { 
+            	//Alert("ok");
+            	PieChart_expenses.removeAll();
+            	PieChart_2_expenses.removeAll();
+            	PieChart_3_expenses.removeAll();
+                var item:ColumnSeriesItem=evt.hitData.chartItem as ColumnSeriesItem;
+                
+            	//mx.controls.Alert.show(item.xValue as String);
+            	var mySeries:Series=evt.hitData.chartItem as Series;
+            	BT_Sum_left=0;BT_Sum_right=0;
+             	//EventAnalyzeApiRO.findRealmReportPiechartEvent(201208,1);
+            	EventAnalyzeApiRO.findRealmReportPiechartEvent(columnArrayCollection[item.index]["COLTIME"],myCheckType);
+            	EventAnalyzeApiRO.findReportPiechartEvent(columnArrayCollection[item.index]["COLTIME"],myCheckType);
+             	//RemObj_PieChart.Return_PieChartData2(expenses[item.index]["myYear"]-1,expenses[item.index]["myMonth"],2,2);
+            	
+            	ColumnChartIndex=item.index.valueOf();
+            	if(ColumnChartIndexOld==999){ColumnChartIndexOld=ColumnChartIndex;}
+            }
+            
+              private function pieChart_dataTipFunction(item:HitData):String { 
+              var mydatatips:String=new String();
+              var LCI:PieSeriesItem = item.chartItem as PieSeriesItem; 
+              var CSI:PieSeries=item.element as PieSeries;
+              if(CSI.id=="BingTS_1"){
+              mydatatips= "<font size='12'>"+ LCI.item.TYPENAME+"<br/>共："+LCI.item.HAPPENTIMES+ "件<br/></font>"; 
+             }else if(CSI.id=="BingTS_2"){
+              mydatatips= "<font size='12'>"+ "题目："+LCI.item.QUESTIONCONTENT+"共做过"+LCI.item.TOTAL+"次，"+"<br/>共错："+LCI.item.WRONG+ "次，出错比例"+ int(LCI.item.WRONG*10000/BT_Sum_All1)/100 + " %<br/></font>"; 
+             }else if(CSI.id=="BingTS_3"){
+              mydatatips= "<font size='12'>"+"选项"+LCI.item.ANSWERCONTENT+"<br/>共"+LCI.item.RIGWRON+"："+LCI.item.NUM+ "次<br/></font>"; 
+             }else if(CSI.id=="BingTS_A"){
+              mydatatips= "<font size='12'>"+ LCI.item.REALM+"<br/>共："+LCI.item.EVENTCOUNT+ "件<br/></font>"; 
+             }else{
+              mydatatips= "<font size='12'>"+"选项"+LCI.item.ANSWERCONTENT+"<br/>共"+LCI.item.RIGWRON+"："+LCI.item.NUM+ "次<br/></font>"; 
+
+			 }
+              return mydatatips;
+            } 
+            
+            
+            private function showGridTip(o:Object):String
+            {
+            var extra:String = "题目："+o.label+"出错比例："+o.data; 
+              //EventAnalyzeApiRO.findReportPiechartEvent3("1",1,0);
+            return extra; 
+            }
+            
+            private function getResult(event:ResultEvent, token:Object =null):void{
+				//save process fail
+				if(BT_Panel_2.width==705)
+                  BT_Panel_2.width=706;
+                else
+                  BT_Panel_2.width=705;
+				
+            	columnArrayCollection=event.result as ArrayCollection;
+            	
+            	BT_Sum_All=0;
+				BT_Sum_All1=0;
+        		BT_Wrong_Temp=0;
+            	for(var q:int=0;q<columnArrayCollection.length;q++)
+            	{   
+            		if(columnArrayCollection[q]["TID"]!=0)
+            		{
+            			BT_Temp+=int(columnArrayCollection[q]["TOTAL"]);
+            			BT_Wrong_Temp+=int(columnArrayCollection[q]["WRONG"]);
+            		}
+            		else
+            		{ 
+            			BT_Sum_All=columnArrayCollection[q]["TOTAL"];
+            			BT_Sum_All1=columnArrayCollection[q]["WRONG"];
+            		}
+            		
+            		
+            	}
+            	
+            	for(var q:int=0;q<columnArrayCollection.length;q++)
+            	{   
+            		if(columnArrayCollection[q]["TID"]==0)
+            		{
+            		columnArrayCollection[q]["TOTAL"]=BT_Sum_All-BT_Temp;
+            		columnArrayCollection[q]["WRONG"]=BT_Sum_All1-BT_Wrong_Temp;
+             		}
+            		
+            		
+            	}
+            	 
+            	BT_Temp=0;
+            //	Alert.show(columnArrayCollection[0][0]);
+          //  trace(columnArrayCollection.toString());
+            	PieChart_expenses.removeAll();
+            	PieChart_2_expenses.removeAll();
+            	PieChart_3_expenses.removeAll();
+            	//EventAnalyzeApiRO.findReportPiechartEvent(columnArrayCollection[0]["COLTIME"],myCheckType);
+
+				//Alert.show(columnArrayCollection.toString());
+				//Alert.show(columnArrayCollection[0]["COLVALUE"].toString());
+			}
+			private function findRealmReportPiechartEventResult(event:ResultEvent, token:Object =null):void{
+			     PieChart_expenses_A=event.result as ArrayCollection;
+			   //  Alert.show(PieChart_expenses_A[0]["eventCount"].toString());
+			 //  Alert.show(PieChart_expenses_A[0]["REALM_ID"].toString());
+			     BT_Sum_A=0;
+			   for(var p:int=0;p<PieChart_expenses_A.length;p++){
+            	BT_Sum_A+=int(PieChart_expenses_A[p]["EVENTCOUNT"]);
+            	}
+			   // Alert.show("BT_Sum_A.toString()");
+			}
+			
+			
+			private function getPiechartResult(event:ResultEvent, token:Object =null):void{
+				//save process fail
+				PieChart_expenses = event.result as ArrayCollection;
+            	for(var p:int=0;p<PieChart_expenses.length;p++){
+            	BT_Sum_left+=int(PieChart_expenses[p]["HAPPENTIMES"]);
+            	}
+				//Alert.show("event.result.toString()");
+				//columnArrayCollection=event.result as ArrayCollection;
+				//Alert.show(columnArrayCollection[0]["COLVALUE"].toString());
+			}
+			private function getPiechartResult2(event:ResultEvent, token:Object =null):void{
+				//save process fail
+				//Alert.show("event.result.toString()");
+				PieChart_2_expenses = event.result as ArrayCollection;
+            	BT_Sum_2=0;
+            	for(var q:int=0;q<PieChart_2_expenses.length;q++){
+            	BT_Sum_2+=int(PieChart_2_expenses[q]["NUM"]);
+            	}
+				
+				//columnArrayCollection=event.result as ArrayCollection;
+				// Alert.show(PieChart_2_expenses[0]["NUM"]);
+			}
+			private function getPiechartResult3(event:ResultEvent, token:Object =null):void{
+				//save process fail
+				BT_Sum_3=0;
+            	PieChart_3_expenses = event.result as ArrayCollection;
+            	if(PieChart_3_expenses[q]["NUM"]!=null)
+            	{
+            		//Alert.show(PieChart_3_expenses[q]["NUM"]);
+	            	for(var q:int=0;q<PieChart_3_expenses.length;q++){
+	            	BT_Sum_3+=int(PieChart_3_expenses[q]["NUM"]);
+	            	
+	            	}
+	            	mlist.height=0;
+	            }
+	            else
+	            {
+	            for(var q:int=0;q<PieChart_3_expenses.length;q++){
+	            BT_Sum_3+=int(PieChart_3_expenses[q]["data"]);
+	            PieChart_3_expenses[q]["data"]=int(PieChart_3_expenses[q]["data"]*10000/BT_Sum_All1)/100+"%";
+	            //PieChart_3_expenses[q]["label"]=mlist.dataProvider.getItemIndex(1)+":"+PieChart_3_expenses[q]["label"];
+	            }
+	            for(var i:int=0;i<PieChart_3_expenses.length;i++)
+	            PieChart_3_expenses[i]["index1"]=i+1;
+	            
+	            for(var i:int=0;i<myCheckType;i++)
+	            PieChart_3_expenses.removeItemAt(0);
+
+	            mlist.dataProvider=PieChart_3_expenses;
+	            mlist.percentHeight=100;
+	            }
+			
+			}
+            private function getFault(event:FaultEvent, token:Object =null):void{
+				//save process fail
+				Alert.show("出错！ \n原因："+event.message);
+			}
+    	private function getItemValue(evt:Event):void{
+         //Alert.show("list1.selectedIndex="+ mlist.selectedIndex + "list1.selectedItem.label="+ mlist.selectedItem.label+ "date="+ mlist.selectedItem.date+ "data="+ mlist.selectedItem.data)
+         //Alert.show(mlist.selectedItem.tid); 
+         EventAnalyzeApiRO.findReportPiechartEvent2("1",mlist.selectedItem.tid,0);
+         dgPie.visible=true;
+
+        }
+        private function onDgPieClick(evt:Event):void{
+        
+         dgPie.visible=false;
+
+        
+        }
+        
+        	private function getSelectionResult(event:ResultEvent, token:Object =null):void{
+            		ClassSelect=event.result as ArrayCollection;
+            		cb1.dataProvider=ClassSelect;
+            	    EventAnalyzeApiRO.findScenes(cb1.text.toString());
+            		PieChart_expenses.removeAll();
+            	    PieChart_2_expenses.removeAll();
+            	    PieChart_3_expenses.removeAll();
+			}
+			private function getTimeSelectionResult(event:ResultEvent, token:Object =null):void{
+				
+				
+            		TimeSelect=event.result as ArrayCollection;
+            		timeSelect.dataProvider=TimeSelect;
+            	//    EventAnalyzeApiRO.findScenes(cb1.text.toString());
+            		PieChart_expenses.removeAll();
+            	    PieChart_2_expenses.removeAll();
+            	    PieChart_3_expenses.removeAll();
+			}
+			
+			
+        
+        
+    	]]>
+    </mx:Script>
+    
+    
+    <mx:RemoteObject id="EventAnalyzeApiRO" destination="EventAnalyzeAPI">
+		   <mx:method name="findEventReport" result="getResult(event)" fault="getFault(event)"/>
+		  	<mx:method name="findRealmReportPiechartEvent" result="findRealmReportPiechartEventResult(event)" fault="getFault(event)"/>
+		  	<mx:method name="findReportPiechartEvent" result="getPiechartResult(event)" fault="getFault(event)"/>
+            <mx:method name="findReportPiechartEvent2" result="getPiechartResult2(event)" fault="getFault(event)"/>  
+            <mx:method name="findReportPiechartEvent3" result="getPiechartResult3(event)" fault="getFault(event)"/>  
+             <mx:method name="findSelection" result="getSelectionResult(event)" fault="getFault(event)"/>
+             <!--时间下拉框-->
+            <mx:method name="findTimeSelection" result="getTimeSelectionResult(event)" fault="getFault(event)"/>
+</mx:RemoteObject>
+	<mx:RemoteObject id="fireApiRO" destination="fireAPI">
+		   <mx:method name="getPoolFireInjuryRadius" result="getResult(event)" fault="getFault(event)"/>
+		   <mx:method name="getFlashFireInjuryRadius" result="getResult(event)" fault="getFault(event)"/>
+        </mx:RemoteObject>
+    <mx:RemoteObject id="myService" destination="ColumnChart"
+                         showBusyCursor="false">        
+        <mx:method name="Return_ColumnChartData"
+        	       result="getData_Result(event)"
+        	       fault="getData_Fault(event)" />
+    </mx:RemoteObject>
+    <mx:RemoteObject id="RemObj_PieChart" destination="PieChart"
+                         showBusyCursor="false">        
+        <mx:method name="Return_PieChartData"
+        	       result="PieChart_Result(event)"
+        	       fault="PieChart_Fault(event)" />
+        <mx:method name="Return_PieChartData2"
+        	       result="PieChart2_Result(event)"
+        	       fault="PieChart2_Fault(event)" />
+        <mx:method name="Return_PieChartData3"
+        	       result="PieChart3_Result(event)"
+        	       fault="PieChart3_Fault(event)" />
+    </mx:RemoteObject>
+        <mx:RemoteObject id="RemObj_DataGrid" destination="DataGrid"
+                         showBusyCursor="false">        
+        <mx:method name="Return_DataGridData"
+        	       result="DataGrid_Result(event)"
+        	       fault="DataGrid_Fault(event)" />
+        <mx:method name="Return_DataGridData2"
+        	       result="DataGrid2_Result(event)"
+        	       fault="DataGrid2_Fault(event)" />
+        <mx:method name="Return_DataGridData3"
+        	       result="DataGrid_Result(event)"
+        	       fault="DataGrid_Fault(event)" />
+        <mx:method name="Return_DataGridData4"
+        	       result="DataGrid_Result(event)"
+        	       fault="DataGrid_Fault(event)" />
+    </mx:RemoteObject>
+    	<mx:SeriesInterpolate id="interpolate_left" elementOffset="10"/>
+    	<mx:SeriesInterpolate id="interpolate_right" elementOffset="10"/>
+        <mx:WipeUp id="myWL" duration="600" />
+        <mx:Fade id="myFD" duration="900" />
+	<mx:VDividedBox    id="evListener" width="100%" height="100%" horizontalAlign="center">		
+	<mx:ApplicationControlBar width="96%" height="36">
+	<mx:Grid width="100%" borderColor="#000000">
+		<mx:GridRow>
+			<mx:GridItem width="764" borderStyle="none">
+       <mx:Label text="显示出错率最高的前" fontSize="12" color="#000000"/>
+       <mx:TextInput width="159"   id="birth_txt">
+     
+       </mx:TextInput>
+       <mx:Label text="道题" fontSize="12" color="#000000"/>
+       <mx:ComboBox  id="cb1" dataProvider="{ClassSelect}" labelField="NAME" >
+       </mx:ComboBox>
+        <!-- 时间下拉框-->
+       <mx:ComboBox  id="timeSelect" dataProvider="{TimeSelect}" labelField="NAME" >
+       </mx:ComboBox>
+       <mx:Button id="search" label="查询"  fontSize="12" click="getData();"/>
+
+			</mx:GridItem>
+			<mx:GridItem>
+			</mx:GridItem>
+				<mx:GridItem>
+			   </mx:GridItem>
+		</mx:GridRow>
+	</mx:Grid>		
+	</mx:ApplicationControlBar>
+    <mx:HDividedBox width="96%" height="250" horizontalAlign="center">
+		<mx:Panel id="BT_Panel_2" x="10" y="331" width="705" height="100%" layout="absolute" title="一级分类 （点击饼图能弹出二级分类）" fontSize="12">
+		<mx:PieChart x="11" y="0" id="BingT_2" width="100%" height="100%" alpha="0.8" themeColor="#ff8000"  itemClick="regionChange(event.hitData.item,'BingT_2')" showDataTips="true" dataTipFunction="pieChart_dataTipFunction"  fontSize="12" dataProvider="{columnArrayCollection}">
+			<mx:series>
+			<mx:PieSeries id="BingTS_2" nameField="QUESTIONCONTENT" field="WRONG" labelPosition="outside" labelFunction="BT_2_getSliceLabel" showDataEffect="{interpolate_left}" fontSize="12">
+				  <mx:fills>
+                    <mx:Array>
+                        <mx:RadialGradient>
+                            <mx:entries>
+                                <mx:Array>
+                                    <mx:GradientEntry color="#EF7651" ratio="0"/>
+                                    <mx:GradientEntry color="#994C34" ratio="1"/>
+                                </mx:Array>
+                            </mx:entries>
+                        </mx:RadialGradient>
+                        <mx:RadialGradient>
+                            <mx:entries>
+                                <mx:Array>
+                                    <mx:GradientEntry color="#E9C836" ratio="0"/>
+                                    <mx:GradientEntry color="#AA9127" ratio="1"/>
+                                </mx:Array>
+                            </mx:entries>
+                        </mx:RadialGradient>
+                        <mx:RadialGradient>
+                            <mx:entries>
+                                <mx:Array>
+                                    <mx:GradientEntry color="#6FB35F" ratio="0"/>
+                                    <mx:GradientEntry color="#497B54" ratio="1"/>
+                                </mx:Array>
+                            </mx:entries>
+                        </mx:RadialGradient>
+                        <mx:RadialGradient>
+                            <mx:entries>
+                                <mx:Array>
+                                    <mx:GradientEntry color="#A1AECF" ratio="0"/>
+                                    <mx:GradientEntry color="#47447A" ratio="1"/>
+                                </mx:Array>
+                            </mx:entries>
+                        </mx:RadialGradient>
+                        <mx:RadialGradient>
+                            <mx:entries>
+                                <mx:Array>
+                                    <mx:GradientEntry color="#BA9886" ratio="0"/>
+                                    <mx:GradientEntry color="#AE775B" ratio="1"/>
+                                </mx:Array>
+                            </mx:entries>
+                        </mx:RadialGradient>
+                         <mx:RadialGradient>
+                            <mx:entries>
+                                <mx:Array>
+                                    <mx:GradientEntry color="#FA9886" ratio="0"/>
+                                    <mx:GradientEntry color="#EE775B" ratio="1"/>
+                                </mx:Array>
+                            </mx:entries>
+                        </mx:RadialGradient>
+                    </mx:Array>
+                  </mx:fills>
+				</mx:PieSeries>
+			</mx:series>
+		</mx:PieChart>
+		<mx:Label id="hintbox" x="158" y="164" text="请输入题目数点击查询" width="209" height="38" color="#1C1716" fontFamily="Arial" fontWeight="normal"  fontSize="20"/>
+	</mx:Panel>
+			<mx:Panel id="BT_Panel_3" width="33%" height="100%" layout="absolute" title="二级分类" fontSize="12">
+		<mx:PieChart x="10" y="0" id="BingT_3" width="90%" height="90%" alpha="0.8" themeColor="#ff8000"  itemClick="regionChange(event.hitData.item,'BingT_3')" showDataTips="true" dataTipFunction="pieChart_dataTipFunction"  fontSize="12" dataProvider="{PieChart_3_expenses}">
+			<mx:series>
+			<mx:PieSeries id="BingTS_3" nameField="BITEM" field="NUM" labelPosition="outside" labelFunction="BT_3_getSliceLabel" showDataEffect="{interpolate_left}" fontSize="12">
+				  <mx:fills>
+                    <mx:Array>
+                        <mx:RadialGradient>
+                            <mx:entries>
+                                <mx:Array>
+                                    <mx:GradientEntry color="#EF7651" ratio="0"/>
+                                    <mx:GradientEntry color="#994C34" ratio="1"/>
+                                </mx:Array>
+                            </mx:entries>
+                        </mx:RadialGradient>
+                        <mx:RadialGradient>
+                            <mx:entries>
+                                <mx:Array>
+                                    <mx:GradientEntry color="#E9C836" ratio="0"/>
+                                    <mx:GradientEntry color="#AA9127" ratio="1"/>
+                                </mx:Array>
+                            </mx:entries>
+                        </mx:RadialGradient>
+                        <mx:RadialGradient>
+                            <mx:entries>
+                                <mx:Array>
+                                    <mx:GradientEntry color="#6FB35F" ratio="0"/>
+                                    <mx:GradientEntry color="#497B54" ratio="1"/>
+                                </mx:Array>
+                            </mx:entries>
+                        </mx:RadialGradient>
+                        <mx:RadialGradient>
+                            <mx:entries>
+                                <mx:Array>
+                                    <mx:GradientEntry color="#A1AECF" ratio="0"/>
+                                    <mx:GradientEntry color="#47447A" ratio="1"/>
+                                </mx:Array>
+                            </mx:entries>
+                        </mx:RadialGradient>
+                        <mx:RadialGradient>
+                            <mx:entries>
+                                <mx:Array>
+                                    <mx:GradientEntry color="#BA9886" ratio="0"/>
+                                    <mx:GradientEntry color="#AE775B" ratio="1"/>
+                                </mx:Array>
+                            </mx:entries>
+                        </mx:RadialGradient>
+                    </mx:Array>
+                  </mx:fills>
+				</mx:PieSeries>
+			</mx:series>
+		</mx:PieChart>
+		<mx:DataGrid id="mlist" x="0" y="0" width="100%" height="0"  themeColor="#009DFF" alternatingItemColors="[0xEEEEEE, 0xDFDFDF]"  itemClick="getItemValue(event)" >
+		<mx:columns>
+			<mx:DataGridColumn dataField="index1"  width=".05" headerText="序号" showDataTips="true" dataTipFunction="showGridTip"/>
+			<mx:DataGridColumn dataField="label"   width=".80" headerText="题目" showDataTips="true" dataTipFunction="showGridTip"/>	
+			<mx:DataGridColumn dataField="data"   width=".15" headerText="出错比例" showDataTips="true" dataTipFunction="showGridTip"/>
+			<mx:DataGridColumn dataField="tid"    headerText="标示符" showDataTips="true" dataTipFunction="showGridTip" visible="false"/>
+		</mx:columns>
+		</mx:DataGrid>
+		<mx:PieChart   x="10" y="70" id="dgPie"   height="308" width="362" alpha="0.8"  itemClick="onDgPieClick(event)"
+
+themeColor="#ff8000"  
+
+showDataTips="true" dataTipFunction="pieChart_dataTipFunction"  fontSize="12" color="#FF0000"
+
+dataProvider="{PieChart_2_expenses}">
+			<mx:series>
+			<mx:PieSeries id="BingPie_3" nameField="BITEM" field="NUM" 
+
+labelPosition="outside" labelFunction="BT_dgPie_getSliceLabel" 
+
+showDataEffect="{interpolate_left}" fontSize="12">
+				  <mx:fills>
+                    <mx:Array>
+                        <mx:RadialGradient>
+                            <mx:entries>
+                                <mx:Array>
+                                    <mx:GradientEntry color="#EF7651" ratio="0"/>
+                                    <mx:GradientEntry color="#994C34" ratio="1"/>
+                                </mx:Array>
+                            </mx:entries>
+                        </mx:RadialGradient>
+                        <mx:RadialGradient>
+                            <mx:entries>
+                                <mx:Array>
+                                    <mx:GradientEntry color="#E9C836" ratio="0"/>
+                                    <mx:GradientEntry color="#AA9127" ratio="1"/>
+                                </mx:Array>
+                            </mx:entries>
+                        </mx:RadialGradient>
+                        <mx:RadialGradient>
+                            <mx:entries>
+                                <mx:Array>
+                                    <mx:GradientEntry color="#6FB35F" ratio="0"/>
+                                    <mx:GradientEntry color="#497B54" ratio="1"/>
+                                </mx:Array>
+                            </mx:entries>
+                        </mx:RadialGradient>
+                        <mx:RadialGradient>
+                            <mx:entries>
+                                <mx:Array>
+                                    <mx:GradientEntry color="#A1AECF" ratio="0"/>
+                                    <mx:GradientEntry color="#47447A" ratio="1"/>
+                                </mx:Array>
+                            </mx:entries>
+                        </mx:RadialGradient>
+                        <mx:RadialGradient>
+                            <mx:entries>
+                                <mx:Array>
+                                    <mx:GradientEntry color="#BA9886" ratio="0"/>
+                                    <mx:GradientEntry color="#AE775B" ratio="1"/>
+                                </mx:Array>
+                            </mx:entries>
+                        </mx:RadialGradient>
+                    </mx:Array>
+                  </mx:fills>
+				</mx:PieSeries>
+			</mx:series>
+		</mx:PieChart>
+	</mx:Panel>
+	
+	    </mx:HDividedBox>
+			</mx:VDividedBox>
+			<mx:NumberValidator id="numValid" source="{birth_txt}" property="text" 
+         minValue="1" maxValue="120" domain="int" 
+         requiredFieldError="必填字段,请填写"
+         lowerThanMinError="您输入的题目数太小了!"
+         exceedsMaxError="您输入的题目数太大了!"
+         invalidCharError="填写有误,请填入数字"
+         integerError="必须为数字"
+         triggerEvent="click" 
+         trigger="{search}"
+         />
+</mx:Application>

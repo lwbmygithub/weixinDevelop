@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:LegendItem xmlns="*" xmlns:mx="http://www.adobe.com/2006/mxml">
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+
+			internal function addCart():void
+			{
+//				data.isAdd=!data.isAdd;
+//				this.parentApplication.dispatchEvent();
+			}
+		]]>
+	</mx:Script>
+	<mx:CheckBox id="cart_check"
+				 x="19"
+				 y="0"
+				 />
+	
+</mx:LegendItem>

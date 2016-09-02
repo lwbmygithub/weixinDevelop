@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" horizontalScrollPolicy="off" verticalScrollPolicy="off">
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			[Bindable]
+			public var nameC:String;
+
+			internal function addCart():void
+			{
+				data.isAdd=!data.isAdd;
+				this.dispatchEvent(new DeptEvents(data,true));
+			}
+		]]>
+	</mx:Script>
+	<mx:HBox horizontalScrollPolicy="off" verticalScrollPolicy="off">
+		<mx:CheckBox id="cart_check"
+				 x="19"
+				 y="0"
+				 selected="{data.isAdd}"
+				 change="addCart()"
+				 enabled="{!data.Disable}"/>
+		<mx:Text text="{nameC}" toolTip="{nameC}"/>
+	</mx:HBox>
+</mx:Canvas>
+

@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel title="全市事故统计图表" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns="*" creationComplete="init()" width="600" height="350" fontSize="13"
+	borderColor="#cccccc" borderAlpha="0.9" textAlign="center" xmlns:components="com.reports.emergencyEventReports.components.*">
+	<mx:RemoteObject id="dictRO" destination="emergencyEventFlexCountRO" fault="faultHandler(event)">
+		<mx:method name="findDictData" result="getDictDatas(event)"/>
+		<mx:method name="getEventsList" result="getEventsListHandler(event)"/>
+		<mx:method name="getEventDetail" result="getEventDetailHandler(event)"/>
+	</mx:RemoteObject>
+	<!--选择汇总列时，可显示全市各类事故柱状和饼状比例分布图-->
+	<mx:Script>
+		<![CDATA[
+			import mx.charts.HitData;
+			import mx.controls.Label;
+			import mx.charts.LegendItem;
+			import mx.charts.AxisRenderer;
+			import mx.events.ListEvent;
+			import mx.charts.events.ChartItemEvent;
+//			import com.esri.solutions.gmapviewer.utils.Hashtable;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.controls.Alert;
+			import mx.charts.series.ColumnSeries;
+			import mx.charts.CategoryAxis;
+			import mx.rpc.events.ResultEvent;
+			import mx.collections.ArrayCollection;
+			
+			[Bindable]
+			public var dictDataArrc:ArrayCollection;
+			[Bindable]
+			public var eventData:ArrayCollection;
+			[Bindable]
+			public var realm:String;
+			[Bindable]
+			public var realm_name:String;
+			[Bindable]
+			public var pieArr:ArrayCollection;
+			[Bindable]
+			public var listData:ArrayCollection= new ArrayCollection;
+			[Bindable]
+			private var eventList:ArrayCollection = new ArrayCollection;
+			[Bindable]
+			private var eventTitle:String = '';
+			
+			private var rowMark:String = 'collectRow';
+			
+			private function init():void{
+				var obj:Object = eventData.getItemAt(0) as Object;
+				realm = obj.REALM_ID;
+				realm_name = obj.REALM;
+				dictRO.findDictData("1000");//事件类型 Mazole 2011-6-8
+			}
+			private function getDictDatas(eve:ResultEvent):void{
+				dictDataArrc=eve.result as ArrayCollection;
+				var obj:Object = eventData.getItemAt(0) as Object;
+				initBarChart();
+//				initPie();
+			}
+			//柱状图
+			private function initBarChart():void{
+				var horAxisP:CategoryAxis = new CategoryAxis();
+        		horAxisP.categoryField = "REALM";
+        		colChartID.horizontalAxis = horAxisP;
+        		var arrayFiel:Array = new Array();
+        		for(var i:Number = 0; i <dictDataArrc.length; i++){
+        			var yFielName:String = dictDataArrc[i].DICT_DATA_NAME;
+        			var columnSer:ColumnSeries = new ColumnSeries;
+		        	columnSer.xField = "REALM";
+		        	columnSer.yField = yFielName;
+		        	var displayName:String = dictDataArrc[i].DICT_DATA_NAME;
+		        	if(displayName.indexOf("_ETID@")!=-1 ){
+			      		columnSer.displayName = displayName.substring(0,displayName.indexOf("_ETID@"));
+			      	}
+			      	else{
+			      		columnSer.displayName = dictDataArrc[i].DICT_DATA_NAME;	
+			      	}
+	        		arrayFiel[i] = columnSer;
+		        	trace(arrayFiel);
+        		}
+		        colChartID.series=arrayFiel;
+
+			}
+			private function faultHandler(event:FaultEvent):void{
+	      		Alert.show(event.fault.faultString);
+	      	}
+	      	internal function doBack():void {
+            	PopUpManager.removePopUp(this);    
+            }
+            private function displayGold(data:Object, field:String, index:Number, percentValue:Number):String {
+            	var displayName:String = data.typeName;
+            	 var obj:Object = new Object();
+		        	if(displayName.indexOf("_ETID@")!=-1 ){
+			      		obj.typeName = displayName.substring(0,displayName.indexOf("_ETID@"));
+			      		obj.typeId = displayName.substring(displayName.lastIndexOf("_ETID@")+6,displayName.length);
+			      	}
+			      	else{
+			      		obj.typeName = data.typeName;
+			      	}
+            	if(data.countNum!=0)
+            	{
+	            var temp:String= (" " + percentValue).substr(0,6);
+//	            obj.typeName = data.typeName;
+	            obj.countNum = data.countNum;
+	            obj.percent = temp+'%';
+	            if(!isContain(listData,obj))
+	            {
+	            	listData.addItem(obj);
+	            }
+	            return obj.typeName + ": " + '\n' + "Total: " + data.countNum + '\n' + temp + "%";
+	            }
+	            return "";
+       		 }
+       		 //改变tooltip显示方式 Mazole 2011-6-8
+       		 private function dataTipsFunctionPIE(data:HitData):String{
+       		 	var obj:Object = data.item;
+       		 	var objs:Object = data.chartItem;
+       		 	var typeName:String = data.item.typeName;
+       		 	if(typeName!=null && typeName!=""){
+       		 		if(data.item.typeName.indexOf("_ETID@")!=-1 ){
+			      		typeName = typeName.substring(0,typeName.indexOf("_ETID@"));
+			      	}
+       		 	}
+       		 	var temp:String= (" " + objs.percentValue);
+       		 	return typeName+ ": " + '\n' + "Total: " + data.item.countNum + '\n' + temp + "%";
+       		 }
+			private function isContain(listData:ArrayCollection,obj:Object):Boolean
+       		{
+       			for each (var item:Object in listData)
+       			{
+       				if(item.typeName == obj.typeName)
+       				{
+       					return true;
+       				}
+       			}
+       			return false;
+       		}
+       		private function toPrint():void{
+				if(toggle.selectedIndex==0)
+				{
+					this.parentApplication.doPrint(barChart);
+				}
+				else if(toggle.selectedIndex==1)
+				{
+					this.parentApplication.doPrint(chartBox);
+				}
+				else if(toggle.selectedIndex==2)
+				{
+					this.parentApplication.doPrint(danymDataGrid);
+				}
+			}
+			private function clickColumnChart(event:ChartItemEvent):void
+			{
+				eventDetailId.htmlText = '';
+				var objDatas:Object = event.hitData.element as Object;
+//	      		var objData:Object = event.hitSet[0].item as Object;
+				var typeId:String = "";
+	      		var typeNameTmp:String = objDatas.yField;
+	      		var typeName:String = "";
+	      		if(typeNameTmp!=null&& typeNameTmp.indexOf("_ETID@")!=-1){
+	      			typeName =  typeNameTmp.substring(0,typeNameTmp.indexOf("_ETID@"));
+	      			typeId =  typeNameTmp.substring(typeNameTmp.lastIndexOf("_ETID@")+6,typeNameTmp.length);
+	      		}
+	      		if(typeName!=""){
+	      			eventTitle = "("+typeName+")";
+	      		}
+//	      		var eventWin:EventsDetailPopWin = new EventsDetailPopWin();
+//		      	eventWin.x = 0;
+//		      	eventWin.y = 0;
+//		      	eventWin.eventType = eventType;
+//		      	eventWin.realm = realm;
+//		      	eventWin.rowMark = 'collectRow';
+//		      	PopUpManager.addPopUp(eventWin,parentApplication.panelID, false);
+//		        PopUpManager.centerPopUp(eventWin);
+		      	dictRO.getEventsList(typeId,typeName,realm,parentApplication.yearStr,parentApplication.monthStr,parentApplication.quarterStr,rowMark);
+			}
+			private function clickColumnPie(event:ChartItemEvent):void{
+				eventDetailId.htmlText = '';
+				var objData:Object = event.hitSet[0].item as Object;
+				var typeId:String = "";
+	      		var typeNameTmp:String = objData.typeName;
+	      		var typeName:String = "";
+	      		if(objData.hasOwnProperty("typeName") && typeNameTmp!=null&& typeNameTmp.indexOf("_ETID@")!=-1){
+	      			typeName =  typeNameTmp.substring(0,typeNameTmp.indexOf("_ETID@"));
+	      			typeId =  typeNameTmp.substring(typeNameTmp.lastIndexOf("_ETID@")+6,typeNameTmp.length);
+	      		}
+	      		if(typeName!=""){
+	      			eventTitle = "("+typeName+")";
+	      		}
+				dictRO.getEventsList(typeId,typeName,realm,parentApplication.yearStr,parentApplication.monthStr,parentApplication.quarterStr,rowMark);
+			}
+			//Mazole 2011-6-8 点击列表显示事件名称列表
+			private function dataGridItemClick(event:ListEvent):void{
+				var item:Object = event.itemRenderer.data as Object;
+				var typeId:String = "";
+				var typeName:String = "";
+				typeId = item.typeId;
+				typeName = item.typeName;
+				if(typeName!=null && typeName!=""){
+					eventTitle =  "("+typeName+")";
+				}
+				dictRO.getEventsList(typeId,typeName,realm,parentApplication.yearStr,parentApplication.monthStr,parentApplication.quarterStr,rowMark);
+			}
+			private function chartLabelFunctions(obj:Object,pcat:Object,ax:AxisRenderer):void{
+			}
+			private function getEventsListHandler(eve:ResultEvent):void
+            {
+            	eventList = eve.result as ArrayCollection;
+            }
+            public function clickHandler(event:ListEvent):void
+			{
+				var obj:Object = event.itemRenderer.data;
+				dictRO.getEventDetail(obj.EVENT_ID);
+			}
+			private function legendMarkerRenderers(obj:Object,objs:Label):void{
+				
+			}
+			private function getEventDetailHandler(event:ResultEvent):void
+			{
+				var obj:Object = event.result[0];
+        		
+        		eventDetailId.htmlText = "<Font color='#000000'><b>事故名称:</b>" + obj.EVENT_NAME+ "\n" +
+											"<b>事故描述:</b>" + obj.EVENT_CONTENT+ "\n" +
+											"<b>开始时间:</b>" + dateFormatId.format(obj.EVENT_START_TIME)+ "\n" +
+											"<b>结束时间:</b>" + dateFormatId.format(obj.EVENT_END_TIME)+ "\n" +
+											"<b>事故地点:</b>" + obj.EVENT_ADDR+ "\n" +
+											"<b>接报时间:</b>" + dateFormatId.format(obj.RECEIVE_TIME)+ "\n" +
+											"<b>事件来源:</b>" + obj.EVENT_SOURCE_ID+ "\n" +
+											"<b>联系人:</b>" + obj.CONTACT_MAN+ "\n" +
+											"<b>电话号码:</b>" + obj.CONTACT_PHONE+ "\n" +
+											"<b>区域:</b>" + obj.OCCUR_AREA+ "\n" +
+											"<b>街道:</b>" + obj.OCCUR_STREET+ "\n" +
+											"<b>受灾人口:</b>" + obj.STRICKEN_PEOPLE+ "\n" +
+											"<b>死亡人数:</b>" + obj.DEAD_NUM+ "\n" +
+											"<b>受伤人数:</b>" + obj.HURT_NUM+ "\n" +
+											"<b>受灾面积:</b>" + obj.STRICKEN_AREA+ "\n" +
+											"<b>受灾经济:</b>" + obj.STRICKEN_ECONOMIC+ "\n" +
+											"<b>拟办意见:</b>" + obj.PROCESS_MIND+ "\n" +
+											"<b>是否信息发布:</b>" + obj.IF_PUBLISH+ "\n" +"</Font>";
+			}
+		]]>
+	</mx:Script>
+	<mx:DateFormatter id="dateFormatId"
+					  formatString="YYYY-MM-DD H:NN:SS"/>
+	<!-- Define custom colors for use as pie wedge fills. -->
+    <mx:SolidColor id="sc1" color="blue" alpha=".6"/>
+    <mx:SolidColor id="sc2" color="red" alpha=".6"/>
+    <mx:SolidColor id="sc3" color="0x663300" alpha=".6"/>
+
+    <!-- This Stroke is used for the callout lines. -->
+    <mx:Stroke id="callouts" weight="2" color="0x999999" alpha=".8" caps="square"/>
+    
+    <!-- This Stroke is used to separate the wedges in the pie. -->
+    <mx:Stroke id="radial" weight="1" color="0xFFFFCC" alpha=".3"/>
+
+    <!-- This Stroke is used for the outer border of the pie. -->
+    <mx:Stroke id="pieborder" color="0x000000" weight="2" alpha=".5"/>
+     <mx:HDividedBox width="100%" height="100%">
+	<mx:ViewStack id="vs" width="70%" height="100%" creationPolicy="all" >
+	   
+	   <mx:VBox id="chartBox" width="100%" height="100%" icon="@Embed('icon_chart.png')" toolTip="圆饼图" hideEffect="Fade" showEffect="Fade">
+			<mx:PieChart id="chart" 
+            height="100%" 
+            width="100%"
+            paddingRight="5"
+            paddingLeft="5" 
+            showDataTips="true" dataTipFunction="dataTipsFunctionPIE"
+            dataProvider="{pieArr}" itemClick="clickColumnPie(event)"
+        	> 
+            <mx:series>
+                <mx:PieSeries  labelPosition="callout"
+                    nameField="typeName"
+                    field="countNum"
+                    labelFunction="displayGold" styleName="ChineseFont"
+                >
+                   <mx:filters>
+                        <mx:Array/>
+                    </mx:filters> 
+                </mx:PieSeries>
+            </mx:series>
+        </mx:PieChart>  
+        <mx:Legend dataProvider="{chart}" direction="horizontal" markerHeight="5" markerWidth="5" fontSize="11" horizontalGap="5" verticalGap="0" width="98%" enabled="true" legendItemClass="{com.reports.emergencyEventReports.components.LegendFontStyle}">
+		</mx:Legend>
+	   </mx:VBox> 
+	   <mx:VBox id="barChart" icon="@Embed('icon_chart.png')" width="100%" height="90%" toolTip="柱状图">
+			<mx:ColumnChart id="colChartID" dataProvider="{eventData}" width="98%" showDataTips="true" height="98%" styleName="ChineseFont" itemClick="clickColumnChart(event)">
+				
+				<!--<mx:horizontalAxisRenderers>
+					<mx:AxisRenderer labelFunction="chartLabelFunctions"/>
+				</mx:horizontalAxisRenderers>
+				<mx:series>
+					<mx:ColumnSeries xField="REALM"/>
+				</mx:series>-->
+			</mx:ColumnChart>
+			<mx:Legend dataProvider="{colChartID}" markerHeight="5" markerWidth="5" fontSize="11" horizontalGap="5" verticalGap="0" width="98%" direction="horizontal" enabled="true" legendItemClass="{com.reports.emergencyEventReports.components.LegendFontStyle}"/>
+		</mx:VBox>
+	   <mx:VBox id="danymDataGrid" icon="@Embed('icon_grid.png')" width="100%" height="90%" toolTip="查看列表">
+		<mx:DataGrid id="eventCountId" width="100%" height="100%" dataProvider="{listData}" itemClick="dataGridItemClick(event)">
+			<mx:columns>
+                <mx:DataGridColumn dataField="typeName" headerText="类型名称"/>
+                <mx:DataGridColumn dataField="countNum" headerText="数量"/>
+                <mx:DataGridColumn dataField="percent" headerText="百分比"/>
+            </mx:columns>
+		</mx:DataGrid>
+	   </mx:VBox>
+	</mx:ViewStack>
+	<mx:VDividedBox width="30%" height="100%">
+		 <mx:AdvancedDataGrid width="100%" height="50%" dataProvider="{eventList}" itemClick="clickHandler(event)">
+		 <mx:columns>
+		 	<mx:AdvancedDataGridColumn dataField="EVENT_NAME" 
+		 		visible="true"
+			   headerText="{'事故名称'+ eventTitle}"
+			   editable="false"
+			   sortable="false"
+			   width="100"
+			   dataTipField="EVENT_NAME"
+			   showDataTips="true" />
+		 </mx:columns>
+		 </mx:AdvancedDataGrid>
+		 <mx:TextArea id="eventDetailId" width="100%" height="50%" textAlign="left" editable="false">
+		 	
+		 </mx:TextArea>
+	</mx:VDividedBox>
+	</mx:HDividedBox>
+	<mx:ControlBar>
+    <mx:ToggleButtonBar dataProvider="{vs}" id="toggle"/>
+    <mx:Button label="打印" click="toPrint()" height="22"/>
+    <mx:Button visible="{toggle.selectedIndex==2}"  label="导出EXCEL" click="this.parentApplication.loadExcel(eventCountId);" height="22"/>
+	<mx:Spacer width="50"/>
+    <mx:Button label="关闭" height="22" click="doBack();"/>
+	</mx:ControlBar>
+</mx:Panel>

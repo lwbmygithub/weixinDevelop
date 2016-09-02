@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:HBox xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%"
+	xmlns:comp="com.connectedpixel.charts.*" creationComplete="initLineSeries()">
+	
+	<mx:Script>
+		<![CDATA[
+			import com.reports.emergencyEventReports.components.legendRender;
+			import mx.charts.LegendItem;
+			import com.google.maps.Color;
+			import com.reports.emergencyEventReports.components.events.ChartCheckBoxEvent;
+			import mx.controls.Alert;
+			import mx.charts.series.LineSeries;
+			import mx.collections.ArrayCollection;
+			import mx.charts.events.ChartItemEvent;
+			
+			[Bindable]
+			public var realms:ArrayCollection;
+			private function initLineSeries():void
+			{
+				this.addEventListener("ChartCheckBox",chartCheckBoxHandler);
+				
+				var arrayFiel:Array = new Array();
+        		for(var i:Number = 0; i <realms.length; i++){
+        			var yFielName:String = realms[i].REALM_NAME;
+					var lineSer:LineSeries = new LineSeries;
+					lineSer.yField = yFielName;
+					lineSer.displayName = realms[i].REALM_NAME;
+					lineSer.setStyle("form","curve");
+					arrayFiel[i] = lineSer;
+        		}
+		        myChart.series=arrayFiel;
+		        liLegenId.dataProvider = myChart;
+			}
+			private function chartCheckBoxHandler(event:ChartCheckBoxEvent):void{
+				var lineArr:Array = myChart.series;
+				for each(var item:LineSeries in lineArr){
+					if(item.yField == event.checkBoxData.labelName){
+						item.visible = event.checkBoxData.isSelected;
+						break;
+					}
+				}
+			}
+			private function selectAll(evt:Event):void { 
+				var ch:CheckBox = evt.currentTarget as CheckBox;  
+				var lineArr:Array = myChart.series;
+				for each(var item:LineSeries in lineArr){
+					item.visible = ch.selected;
+				}
+				for(var j:int = 0; j < liLegenId.getChildren().length;j++)
+				{
+					var legendIte:legendRender = liLegenId.getChildAt(j) as legendRender;
+					legendIte.checkbox.selected = ch.selected;
+				}
+            }
+            public function toPrint():void
+            {
+            	this.parentApplication.doPrint(printBox);
+            }
+            public function getLineColor(labelName:String):uint
+            {
+            	var lineArr:Array = myChart.series;
+            	for each(var item:LineSeries in lineArr){
+					if(item.yField == labelName){
+						return item.getStyle('lineStroke').color;
+					}
+            	}
+				return 9999999999;
+            }
+		]]>
+	</mx:Script>
+	<mx:Object id="selectedItem"/>
+	<mx:VBox height="100%" width="100%">
+     <mx:VBox id="printBox" height="100%" width="100%">
+		<mx:LineChart id="myChart"  
+			width="100%" height="100%" showDataTips="true" fontFamily="宋体" fontSize="12">
+			
+		<mx:horizontalAxis>
+			<mx:CategoryAxis id="nameAxis" categoryField="种类"  />
+		</mx:horizontalAxis>
+			
+		<mx:horizontalAxisRenderers>
+			<comp:ScrollableAxisRenderer axis="{nameAxis}" id="scrollAxis" tickPlacement="none" placement="bottom" 
+					labelGap="3"  maxVisibleColumns="8"  scrollBarThemeColor="blue"/>
+		</mx:horizontalAxisRenderers>
+		</mx:LineChart>
+		<mx:Legend id="liLegenId" paddingLeft="25" width="100%" direction="horizontal" enabled="true" legendItemClass="{com.reports.emergencyEventReports.components.legendRender}" x="50" horizontalGap="50"/>
+	</mx:VBox>
+	<mx:HBox>
+		<mx:CheckBox id="allSelect" selected="true" change="selectAll(event);" label="全选" paddingLeft="25"/>
+		<mx:Label text="Zoom" paddingLeft="50" />
+		<mx:HSlider id="zoomSlider"  minimum="2"  
+			value="{scrollAxis.maxVisibleColumns}"
+			change="scrollAxis.maxVisibleColumns=zoomSlider.value"  
+			snapInterval="1" allowTrackClick="true" 
+			liveDragging="true"/>
+	</mx:HBox>
+	</mx:VBox>
+</mx:HBox>

@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel title="{fieldName +'统计图表'}" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns="*" creationComplete="init()" width="800" height="500" fontSize="13"
+	borderColor="#cccccc" borderAlpha="0.9" textAlign="center" >
+	<!--选择标题时，可饼状图和柱状图展示咨询或投诉的各区所占比例-->
+	<mx:RemoteObject id="dictRO" destination="emergencyEventFlexCountRO" fault="faultHandler(event)">
+		<mx:method name="findEventsLossByTypeHandler" result="findEventsLossByType(event)"/>
+		<mx:method name="getComplainConsults" result="getComplainConsultsHandler(event)"/>
+		<mx:method name="getComplainConsultDetail" result="getComplainConsultDetailHandler(event)"/>
+	</mx:RemoteObject>
+	<mx:Script>
+		<![CDATA[
+			import mx.events.ListEvent;
+			import mx.charts.events.ChartItemEvent;
+			import com.reports.emergencyEventReports.components.LegendFontStyle;
+			import mx.rpc.events.ResultEvent;
+			import mx.controls.Alert;
+			import mx.rpc.events.FaultEvent;
+			import mx.charts.series.ColumnSeries;
+			import mx.charts.CategoryAxis;
+			import mx.managers.PopUpManager;
+			import mx.collections.ArrayCollection;
+		
+			[Bindable]
+			public var typeByRealm:ArrayCollection = new ArrayCollection;
+			[Bindable]
+			public var fieldName:String;
+			[Bindable]
+			public var realms:ArrayCollection = new ArrayCollection;
+			[Bindable]
+			public var typeName:String;
+			[Bindable]
+			public var eventsByTypeBar:ArrayCollection = new ArrayCollection;
+			[Bindable]
+			public var eventsByTypePie:ArrayCollection = new ArrayCollection;
+			[Bindable]
+			public var listData:ArrayCollection= new ArrayCollection;
+			[Bindable]
+			public var compConList:ArrayCollection= new ArrayCollection;
+			[Bindable]
+			private var hitRealm:String= '';
+			
+			private function init():void
+			{
+				var temArr:ArrayCollection = parentApplication.complainCountArrc;
+				var len:int = temArr.length;
+				var barObj:Object = new Object();
+				barObj.realm = "全市";
+				for each(var realmItem:Object in realms)
+				{
+					var realm:String = realmItem.REALM_NAME;
+					var pieObj:Object = new Object();
+					for each(var item:Object in temArr)
+					{
+						if(realm == item.REALM){
+							barObj[realm] = item[typeName];
+							pieObj.realmName = realm;
+							pieObj.countNum = item[typeName];
+							break;
+						}
+					}
+					eventsByTypePie.addItem(pieObj);
+				}
+				eventsByTypeBar.addItem(barObj);
+				eventsByTypeBar.refresh();
+				eventsByTypePie.refresh();
+				initBar();
+				
+			}
+			private function initBar():void
+			{
+				var horAxisP:CategoryAxis = new CategoryAxis();
+        		horAxisP.categoryField = "realm";
+        		colChartID.horizontalAxis = horAxisP;
+        		var arrayFiel:Array = new Array();
+        		for(var i:Number = 0; i <realms.length; i++){
+        			var yFielName:String = realms[i].REALM_NAME;
+        			var columnSer:ColumnSeries = new ColumnSeries;
+		        	columnSer.xField = "realm";//
+		        	columnSer.yField = yFielName;
+	        		columnSer.displayName = realms[i].REALM_NAME;		
+	        		arrayFiel[i] = columnSer;
+		        	trace(arrayFiel);
+        		}
+		        colChartID.series=arrayFiel;
+			}
+			private function findEventsLossByType(eve:ResultEvent):void{
+//				
+//				var temArr:ArrayCollection = eve.result as ArrayCollection;
+//				eventsByTypeBar = temArr.getItemAt(0).EVENT_BY_TYPE_BAR;
+//				eventsByTypePie = temArr.getItemAt(0).EVENT_BY_TYPE_PIE;
+//				var horAxisP:CategoryAxis = new CategoryAxis();
+//        		horAxisP.categoryField = " 事件类型";
+//        		colChartID.horizontalAxis = horAxisP;
+//        		var arrayFiel:Array = new Array();
+//        		for(var i:Number = 0; i <realms.length; i++){
+//        			var yFielName:String = realms[i].REALM_NAME;
+//        			var columnSer:ColumnSeries = new ColumnSeries;
+//		        	columnSer.xField = " 事件类型";//
+//		        	columnSer.yField = yFielName;
+//	        		columnSer.displayName = realms[i].REALM_NAME;		
+//	        		arrayFiel[i] = columnSer;
+//		        	trace(arrayFiel);
+//        		}
+//		        colChartID.series=arrayFiel;
+			}
+			private function faultHandler(event:FaultEvent):void{
+	      	Alert.show(event.fault.faultString);
+	        }
+			private function displayGold(data:Object, field:String, index:Number, percentValue:Number):String {
+				if(data.countNum!=0)
+				{
+	            var temp:String= (" " + percentValue).substr(0,6);
+	            var obj:Object = new Object();
+	            obj.realmName = data.realmName;
+	            obj.countNum = data.countNum;
+	            obj.percent = temp+'%';
+	            if(!isContain(listData,obj))
+	            {
+	            	listData.addItem(obj);
+	            }
+	            return data.realmName + ": " + '\n' + "Total: " + data.countNum + '\n' + temp + "%";
+	   			}
+	   			return "";
+       		}
+       		private function isContain(listData:ArrayCollection,obj:Object):Boolean
+       		{
+       			for each (var item:Object in listData)
+       			{
+       				if(item.realmName == obj.realmName)
+       				{
+       					return true;
+       				}
+       			}
+       			return false;
+       		}
+			internal function doBack():void {
+            	PopUpManager.removePopUp(this);    
+            }
+            private function toPrint():void{
+				if(toggle.selectedIndex==0)
+				{
+					this.parentApplication.doPrint(barChart);
+				}
+				else if(toggle.selectedIndex==1)
+				{
+					this.parentApplication.doPrint(chartBox);
+				}
+				else if(toggle.selectedIndex==2)
+				{
+					this.parentApplication.doPrint(danymDataGrid);
+				}
+			}
+			private function clickColumnChart(event:ChartItemEvent):void
+			{
+				detailId.htmlText = '';
+				var obj:Object = event.hitData.element as Object;
+	      		hitRealm = obj.yField;
+	      		dictRO.getComplainConsults(fieldName,parentApplication.yearStr,parentApplication.monthStr,parentApplication.quarterStr,hitRealm,'');
+			}
+			private function getComplainConsultsHandler(event:ResultEvent):void
+			{
+				compConList = event.result as ArrayCollection;
+			}
+			public function clickHandler(event:ListEvent):void
+			{
+				var obj:Object = event.itemRenderer.data;
+				dictRO.getComplainConsultDetail(fieldName,obj.ID);
+			}
+			private function getComplainConsultDetailHandler(event:ResultEvent):void
+			{
+				var obj:Object = event.result[0];
+				detailId.htmlText = "<Font color='#000000'><b>" + fieldName + "内容:</b>" + obj.CONTENT+ "\n" +
+									"<b>类型:</b>" + obj.TYPE+ "\n" +
+									"<b>状态:</b>" + obj.STATUS+ "\n" +
+									"<b>" + fieldName + "时间:</b>" + dateFormatId.format(obj.CALL_TIME)+ "\n" +
+									"<b>" + fieldName + "人:</b>" + obj.REPORTER + "\n" +
+									"<b>" + fieldName + "人手机号:</b>" + obj.REPORTER_CELL_PHONE + "\n" +
+									"<b>" + fieldName + "人固话:</b>" + obj.REPORTER_TELEPHONE + "\n" +
+									"<b>操作员:</b>" + obj.USER_NAME+ "\n" + "</Font>";
+			}
+		]]>
+	</mx:Script>
+	<mx:DateFormatter id="dateFormatId"
+					  formatString="YYYY-MM-DD H:NN:SS"/>
+	<mx:HDividedBox width="100%" height="100%">
+	<mx:ViewStack id="vs" width="70%" height="100%" creationPolicy="all" >
+	   <mx:VBox id="barChart" icon="@Embed('icon_chart.png')" width="100%" height="90%" toolTip="柱状图">
+			<mx:ColumnChart id="colChartID" dataProvider="{eventsByTypeBar}" width="98%" showDataTips="true" height="98%" styleName="ChineseFont" itemClick="clickColumnChart(event)"/>
+			<mx:Legend dataProvider="{colChartID}" width="98%" direction="horizontal" enabled="true" legendItemClass="{com.reports.emergencyEventReports.components.LegendFontStyle}"/>
+		</mx:VBox>
+	   <mx:VBox id="chartBox" width="100%" height="100%" icon="@Embed('icon_chart.png')" toolTip="圆饼图" hideEffect="Fade" showEffect="Fade">
+			<mx:PieChart id="chart" 
+            height="100%" 
+            width="100%"
+            paddingRight="5" 
+            paddingLeft="5" 
+            showDataTips="true" 
+            dataProvider="{eventsByTypePie}"
+        	> 
+            <mx:series>
+                <mx:PieSeries  labelPosition="callout"
+                    nameField="realmName"
+                    field="countNum" 
+                    labelFunction="displayGold" styleName="ChineseFont"
+                >
+                    <mx:filters>
+                        <mx:Array/>
+                    </mx:filters>
+                </mx:PieSeries>
+            </mx:series>
+        </mx:PieChart>  
+        <mx:Legend dataProvider="{chart}" direction="horizontal" enabled="true"  width="98%" legendItemClass="{com.reports.emergencyEventReports.components.LegendFontStyle}"/>
+	   </mx:VBox> 
+	   <mx:VBox id="danymDataGrid" icon="@Embed('icon_grid.png')" width="100%" height="90%" toolTip="查看列表">
+		<mx:DataGrid id="eventCountId" width="100%" height="100%"  dataProvider="{listData}">
+			<mx:columns>
+                <mx:DataGridColumn dataField="realmName" headerText="区域名称"/>
+                <mx:DataGridColumn dataField="countNum" headerText="数量"/>
+                <mx:DataGridColumn dataField="percent" headerText="百分比"/>
+            </mx:columns>
+		</mx:DataGrid>
+	   </mx:VBox>
+	</mx:ViewStack>
+	<mx:VDividedBox width="30%" height="100%">
+		 <mx:AdvancedDataGrid width="100%" height="50%" dataProvider="{compConList}" itemClick="clickHandler(event)">
+		 <mx:columns>
+		 	<mx:AdvancedDataGridColumn dataField="CONTENT" 
+		 		visible="true"
+			   headerText="{'标题('+ hitRealm+')'}"
+			   editable="false"
+			   sortable="false"
+			   width="100"
+			   dataTipField="CONTENT"
+			   showDataTips="true" />
+		 </mx:columns>
+		 </mx:AdvancedDataGrid>
+		 <mx:TextArea id="detailId" width="100%" height="50%" textAlign="left" editable="false">
+		 	
+		 </mx:TextArea>
+	</mx:VDividedBox>
+	</mx:HDividedBox>
+	<mx:ControlBar>
+    <mx:ToggleButtonBar dataProvider="{vs}" id="toggle"/>
+    <mx:Button label="打印" click="toPrint()" height="22"/>
+    <mx:Button visible="{toggle.selectedIndex==2}" label="导出EXCEL" click="this.parentApplication.loadExcel(eventCountId);" height="22"/>
+	<mx:Spacer width="50"/>
+    <mx:Button label="关闭" height="22" click="doBack();"/>
+	</mx:ControlBar>
+</mx:Panel>

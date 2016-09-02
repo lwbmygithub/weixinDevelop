@@ -1,0 +1,170 @@
+<?xml version="1.0"?>
+<mx:HBox xmlns:mx="http://www.adobe.com/2006/mxml" horizontalGap="-6"
+	horizontalAlign="right" paddingRight="8" horizontalScrollPolicy="off" verticalScrollPolicy="off" creationComplete="init();">
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			import mx.managers.PopUpManager;
+			import mx.events.FlexEvent;
+			[Embed(source='com/esri/solutions/flexviewer/assets/images/icons/v_dialStart.gif')]
+			private var dialstartImg:Class;
+			[Embed(source='com/esri/solutions/flexviewer/assets/images/icons/v_dialing.gif')]
+			private var dialingImg:Class;
+			[Embed(source='com/esri/solutions/flexviewer/assets/images/icons/v_talking.gif')]
+			private var talkingImg:Class;
+			[Bindable]
+			private var dialImgs:Class=dialstartImg;
+			[Bindable]
+			public var voiceStates:String="dialStart";
+			[Bindable]
+			public var mobileNum:String="";
+			override public function set data(value:Object):void 
+			{    
+            			super.data = value;
+            			if(data!=null)
+						{
+							if(mobileNum != null && mobileNum != "")
+							{
+								imgId.visible = true;
+								textId.visible = true;
+//								imgId.source = dialImgs;
+            					textId.text = mobileNum;
+							}
+							else if(value.hasOwnProperty("emMobileNum") && value["emMobileNum"]!=null && value["emMobileNum"]!="" ){
+								imgId.visible = true;
+								textId.visible = true;
+//								imgId.source = dialImgs;
+            					textId.text = value["emMobileNum"];
+							}
+							else
+							{
+								imgId.visible = false;
+								textId.visible = false;
+							}
+						}
+						else
+							{
+								imgId.visible = false;
+								textId.visible = false;
+							}
+            			
+   			}
+   			
+   			override protected function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
+			{
+				super.updateDisplayList(unscaledWidth, unscaledHeight);
+				if (data != null)
+				{
+					if(data.callStatus == "dialing")
+					{
+						dialImgs=dialingImg;
+						imgId.toolTip="正在拨号,请稍等...";
+						imgId.invalidateDisplayList();
+					}
+					else if(data.callStatus == "talking")
+					{
+						dialImgs=talkingImg;
+						imgId.toolTip="通话中...";
+						imgId.invalidateDisplayList();
+					}
+					else
+					{
+						dialImgs=dialstartImg;
+						imgId.toolTip="拨号";
+						imgId.invalidateDisplayList();
+					}
+				}
+
+			}
+   			private function init():void{
+				ExternalInterface.addCallback("voiceCurStatus", voiceStatusHandler);
+			}
+   			//拨号
+			private function dialOutHandler():void
+			{
+				var callStatus:String = ExternalInterface.call("findCallStatus");
+				if(callStatus == "1" || callStatus == "14")
+				{
+					if(voiceStates=="dialStart"){
+						var loginStatus:String = ExternalInterface.call("reqStartDial", textId.text);
+						if(loginStatus == "unLogin"){
+							if(parentApplication.hasOwnProperty("voiceLoginWin") && parentApplication.voiceLoginWin!=null){
+								var voiceLoginWin:voiceLogin=parentApplication.voiceLoginWin;
+								voiceLoginWin.x=this.parentApplication.width/3;
+								voiceLoginWin.y=this.parentApplication.height/3;
+								voiceLoginWin.visible = true;
+							}
+							else {
+								var voiceLoginWins:voiceLogin=new voiceLogin;
+								voiceLoginWins.x=this.parentApplication.width/3;
+								voiceLoginWins.y=this.parentApplication.height/3;
+								PopUpManager.addPopUp(voiceLoginWins, this, true);
+							}
+//							PopUpManager.addPopUp(voiceLoginWin, this, true);
+						}
+						else{
+							imgId.toolTip = "正在拨号,请稍等...";
+							dialImgs = dialingImg;
+							voiceStates="dialStarting";
+							imgId.invalidateDisplayList();
+							data.callStatus = "dialing";
+						}
+					}
+					else if(voiceStates=="dialStarting"){
+						Alert.show("正在拨号");
+					}
+					else if(voiceStates=="onDialling"){
+						Alert.show("正在通话");
+					}
+				}
+				else
+				{
+					Alert.show("一次只能打一通电话");
+				}
+			}
+			private function voiceStatusHandler(voiceStatus:String):void{
+				if(voiceStatus!=null && voiceStatus!=""){
+					if(voiceStatus=="onDialling"){
+					imgId.toolTip="正在拨号,请稍等...";
+					dialImgs=dialingImg;
+					voiceStates="onDialling";
+					imgId.invalidateDisplayList();
+					data.callStatus = "dialing";
+				}
+				else if(voiceStatus=="onTalking"){
+					imgId.toolTip="通话中...";
+					dialImgs=talkingImg;
+					voiceStates="onTalking";
+					imgId.invalidateDisplayList();
+					data.callStatus = "talking";
+				}
+				else if(voiceStatus=="onTalkEnded"){
+					dialImgs=dialstartImg;
+					imgId.toolTip="拨号";
+					voiceStates="dialStart";
+					imgId.invalidateDisplayList();
+					data.callStatus = "unCall";
+				}
+				else{
+					dialImgs=dialstartImg;
+					imgId.toolTip="拨号";
+					voiceStates="dialStart";
+					imgId.invalidateDisplayList();
+					data.callStatus = "unCall";
+				}
+				}
+			}
+		]]>
+	</mx:Script>
+    <mx:Image id="imgId"
+				  width="20"
+				  source="{dialImgs}"
+				  useHandCursor="true"
+				  buttonMode="true"
+				  click="dialOutHandler()"
+				  rollOut="{imgId.alpha=0.8}"
+				  rollOver="{imgId.alpha=1}"/>
+	<mx:Text id="textId"
+				 selectable="false"
+				 text=""/>
+</mx:HBox>

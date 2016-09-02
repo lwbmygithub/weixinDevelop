@@ -1,0 +1,22 @@
+#
+#Wed Nov 06 10:59:07 CST 2013
+genBasicCompId=false
+sessionFactoryName=
+profile=
+daoSFId=
+version=2.1
+jndiPath=
+detectM2M=false
+reStrategyClass=
+springDaoFile=
+useJavaTypes=true
+keyGenerator=
+libInstallFolder=
+addLibs2Project=false
+genVersionTag=false
+sessionFactoryId=
+basePersistenceClass=
+reSettingsFile=
+configFile=
+createConfigFile=false
+addLibs2Classpath=false

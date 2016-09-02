@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml"
+				title="专家详细信息"
+				width="350"
+				height="230"
+				 fontSize="12"
+				bottom="0"
+				right="0"
+				x="{this.parentApplication.width - this.width}"
+				y="{this.parentApplication.height - this.height}"
+				showCloseButton="true"
+				close="this.visible=false;"
+				creationComplete="init()">
+	<mx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			
+			[Bindable]
+			public var expertDetails:ArrayCollection;
+			
+			private function init():void{
+				
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:DataGrid id="expertDg"
+				 dataProvider="{expertDetails}"
+				 width="98%"
+				 height="98%">
+		<mx:columns>
+			<mx:DataGridColumn dataField="Info"
+							   sortable="false"
+							   headerText="专家信息"
+							   width="50"/>
+			<mx:DataGridColumn dataField="Details"
+							   sortable="false"
+							   headerText="专家"
+							    wordWrap="true"
+							   width="50" showDataTips="true"/>
+		</mx:columns>
+	</mx:DataGrid>
+</mx:TitleWindow>

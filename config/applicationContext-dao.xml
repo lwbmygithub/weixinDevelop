@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.0.xsd">
+	<bean id="queryDao" class="com.sunwah.baseapp.dao.QueryDaoImpl">
+		<property name="dataSource" ref="dataSource" />
+		<property name="sqlMapClient" ref="sqlMapClient" />
+	</bean>
+	
+	<bean id="menuDao" class="com.sunwah.baseapp.weixin.dao.MenuDaoImpl">
+			<property name="sessionFactory" ref="sessionFactory" />
+	</bean>
+	
+	<bean id="articleDao" class="com.sunwah.baseapp.weixin.dao.ArticleDaoImpl">
+			<property name="sessionFactory" ref="sessionFactory"></property>
+	</bean>
+	
+	<bean id="contentDao" class="com.sunwah.baseapp.weixin.dao.ContentDaoImpl">
+			<property name="sessionFactory" ref="sessionFactory"></property>
+	</bean>
+	
+	<bean id="menuArticleDao" class="com.sunwah.baseapp.weixin.dao.MenuArticleDaoImpl">
+			<property name="sessionFactory" ref="sessionFactory"></property>
+	</bean>
+	
+	<bean id="menuContentDao" class="com.sunwah.baseapp.weixin.dao.MenuContentDaoImpl">
+			<property name="sessionFactory" ref="sessionFactory"></property>
+	</bean>
+	
+</beans>

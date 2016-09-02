@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" creationComplete="init()" horizontalScrollPolicy="off" verticalScrollPolicy="off">
+	<mx:RemoteObject id="addressListRO" destination="addressListRO" fault="faultHandler(event)">
+		<mx:method name="getAllDeptTypeTree" result="getAllDeptTypeTree_resultHandler(event)"/>
+	</mx:RemoteObject>
+	<mx:Script>
+    <![CDATA[
+    	import mx.utils.StringUtil;
+    	import mx.rpc.events.ResultEvent;
+    	import mx.controls.Alert;
+    	import mx.rpc.events.FaultEvent;
+    	
+    	
+    	[Bindable]
+      	public var treeXMLList:XMLList = new XMLList;//部门树的数据源
+      	/**
+      	 <?xml version="1.0"?>
+			<dept layout="standard" name="通讯录">
+			<dept layout="bothHanging" dept_id="2" parent_id="0" name="市政府工作部门">
+			<dept layout="bothHanging" dept_id="101_3" parent_id="2" name="江门市人民政府办公室"></dept>
+			<dept layout="bothHanging" dept_id="101_4" parent_id="2" name="江门市发展和改革局"></dept>
+			</dept>
+			</dept>
+		 **/
+      	
+      	private var keyword:String;
+    	
+    	//初始方法，取得部门数据
+    	private function init():void{
+	      	var realmId:String=ExternalInterface.call("toGetRealmId");
+	      	if(realmId!=null){
+	      		addressListRO.getAllDeptTypeTree(realmId);
+	      	}
+	      	else{
+	      		addressListRO.getAllDeptTypeTree('101');
+	      	}
+      	}
+      	
+      	private function faultHandler(event:FaultEvent):void{
+      		Alert.show(event.fault.faultString);
+        }
+        
+        //部门数据XMLList
+        private function getAllDeptTypeTree_resultHandler(event:ResultEvent):void{
+	      	treeXMLList = XMLList(event.result);
+	      	deptTree.dataProvider = treeXMLList;
+	      	deptTree.visible = true;
+      	}
+      	
+      	//过滤数据
+	    public function filterData():void
+	    {
+	    	var keyword:String = search.text;
+	        if(StringUtil.trim(keyword)!="")
+	        {
+	        this.keyword=keyword;
+	        var filterXml:XML=<dept/>;
+	        for(var k:int=0;k<treeXMLList.length();k++)
+	        {
+	            var tempxml:XML=getXML(new XMLList(treeXMLList[k]));
+	            if(tempxml.children().length()>0)
+	            {
+	                filterXml.appendChild(tempxml);
+	            }
+	        } 
+	
+	        deptTree.dataProvider=filterXml.children();
+	        }
+	        else              //输入关键字为空时为原始数据
+	        {
+	            deptTree.dataProvider=treeXMLList;
+	        }
+	        openTree(deptTree);
+	    } 
+	
+	    private function getXML(xmllist:XMLList):XML
+	    {
+	        var xmlChildren:XMLList=xmllist.children();        //子节点
+	        var xml:XML=<dept/>;                            //返回的xml
+	        if(xmllist.hasOwnProperty("@layout")) xml.@layout=xmllist.@layout;//xml属性
+	        if(xmllist.hasOwnProperty("@dept_id")) xml.@dept_id=xmllist.@dept_id;
+	        if(xmllist.hasOwnProperty("@parent_id")) xml.@parent_id=xmllist.@parent_id;
+	        if(xmllist.hasOwnProperty("@name")) xml.@name=xmllist.@name;
+	        for(var i:int=0;i<xmlChildren.length();i++)
+	        {
+	            if(xmlChildren[i].children().length()>0)                     //有子节点时
+	            {
+	                var xmlGet:XML=getXML(new XMLList(xmlChildren[i]));        //递归得到的xml
+	                if(xmlGet.children().length()>0)                        //有子节点就增加
+	                {
+	                    xml.appendChild(xmlGet);                        
+	                }
+	            }else                                                        //无子节点时
+	            {
+	                var temp:String=xmlChildren[i].@name;
+	                if(temp.indexOf(this.keyword)>=0)//关键字
+	                {
+	                    xml.appendChild(xmlChildren[i]);
+	                }
+	            }
+	        }
+	            return xml;
+	    } 
+		//展开树
+		private function openTree(openTree:Tree):void
+		{
+			openTree.validateNow();
+			openTree.selectedIndex=0;
+			openTree.expandChildrenOf(openTree.selectedItem, true);
+//			openTree.validateNow();
+//			openTree.selectedIndex=0;
+//			openTree.expandItem(openTree.selectedItem, true, false, false, null);
+
+		}
+		
+		private function selectDept():void
+		{
+			if(selectedDept.text.length>0)
+			{
+				var deptId:String = deptTree.selectedItem.@dept_id;
+				var deptName:String = deptTree.selectedItem.@name;
+				ExternalInterface.call("selectDeptHandler",deptId,deptName);
+			}
+			else
+			{
+				Alert.show("请先选择部门。");
+			}
+		}
+		
+		//点击部门树处理方法
+		private function deptTreeDoubleClickHandler():void
+		{
+			var itemIsBranch:Boolean = deptTree.dataDescriptor.isBranch(deptTree.selectedItem);
+			if(!itemIsBranch)
+			{
+				selectedDept.text = deptTree.selectedItem.@name;
+			}
+			else
+			{
+				selectedDept.text = "";
+				Alert.show("请选择具体部门");
+			}
+		}
+    ]]>
+  </mx:Script>
+  
+	<mx:VBox width="100%" height="100%" backgroundColor="0x99ccff">
+		<mx:Label text="双击选择部门" fontSize="12"/>
+		<mx:HBox borderColor="0xcc6600" borderThickness="2">
+			<mx:Label text="部门名：" fontSize="14"/>
+			<mx:TextInput text="" id="search" width="120" change="filterData();" backgroundColor="0xffffff" color="0x000000" fontSize="12"/>
+			<mx:Spacer width="30"/>
+			<mx:TextInput id="selectedDept" width="160" backgroundColor="0x7fceff" color="0x000000" fontSize="12" editable="false"/>
+			<mx:Button label="保存" useHandCursor="true" buttonMode="true" fontSize="12" click="selectDept();"/>
+		</mx:HBox>
+		<mx:Tree id="deptTree" borderColor="0x7fceff" defaultLeafIcon="undefined" width="100%" fontSize="12" height="100%" labelField="@name" doubleClickEnabled="true" borderThickness="2" visible="false" doubleClick="deptTreeDoubleClickHandler();"/> 
+	</mx:VBox>
+</mx:Application>

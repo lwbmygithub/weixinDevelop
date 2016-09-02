@@ -1,0 +1,346 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%"
+	  xmlns:MobileNum="com.addrList.components.*"
+	  xmlns:mobiles="com.addrList.components.*"
+	  xmlns:local="*" fontSize="12"
+	  xmlns:m="com.sunwah.designLayout.managers.*" creationComplete="init();">
+	<mx:Script source="utils.as"/>
+	<mx:Script>
+    <![CDATA[
+    	import mx.utils.StringUtil;
+    	import mx.events.IndexChangedEvent;
+	    import com.esri.solutions.flexviewer.components.checkBox.expertCheckBox.ExpertAddrListMsgCbxEvent;
+	    import mx.collections.HierarchicalData;
+	    import mx.collections.XMLListCollection;
+	    import com.esri.solutions.flexviewer.AppEvent;
+	    import com.sunwah.components.checkTree.TreeCheckBoxEvent;
+	    import com.sunwah.designLayout.valueObjects.SelectedResCat;
+	    import mx.core.Application;
+	    import mx.containers.VBox;    	
+	    import mx.controls.Label;
+	    import mx.controls.DataGrid;
+	    import mx.managers.PopUpManager;    	
+	    import mx.events.ListEvent;
+	    import mx.collections.ArrayCollection;    	
+	    import mx.rpc.events.ResultEvent;
+	    import mx.rpc.events.FaultEvent;    	
+	    import mx.controls.Alert;    	
+	    import com.addrList.expertAddrList.exDetailPopUpWins;
+	    import flash.external.ExternalInterface;
+	    import mx.events.ItemClickEvent;
+	    import mx.utils.URLUtil;
+	    import com.esri.solutions.flexviewer.SiteContainer;
+	     	
+	    
+	    private var port:int;
+	    private var serverName:String;
+	    [Bindable]
+	    private var serverUrl:String;
+	    
+	    [Bindable]
+		private var adgDatas:XMLListCollection = new XMLListCollection();
+		[Bindable]
+		public var sucTeamMsgXMLList:XMLList=new XMLList();
+		[Bindable]
+		public var teamSelectedData:XMLListCollection = new XMLListCollection();//救援队短信列表
+		private var isFilterTeam:Boolean=false;
+     
+    private function init():void
+    {
+    	SiteContainer.addEventListener(AppEvent.ADLI_DEPT_BY_REALM_CHKB,contactCbxHandler);
+    }
+    private function contactCbxHandler(event:AppEvent):void
+    {
+    	var selectedContac:Object=event.data as Object;
+		var state:Boolean = selectedContac.@state=="checked"?true:false;
+    	if(isFilterTeam)
+		{
+			if(state)
+			{
+				sucTeamMsgXMLList..sucTeam.(@succor_team_id == selectedContac.@succor_team_id[0].toString()).@state = "checked";
+			}
+			else
+			{
+				sucTeamMsgXMLList..sucTeam.(@succor_team_id == selectedContac.@succor_team_id[0].toString()).@state = "unchecked";
+			}
+		}
+		getSendList(selectedContac.@state,selectedContac.@succor_team_id,new XML(selectedContac));
+//		var sucTeamTemMsgXMLList:XMLList = new XMLList();
+//		sucTeamTemMsgXMLList = sucTeamMsgXMLList..sucTeam.(@state == "checked");
+//		sucTeamAdgdata=new XMLListCollection(sucTeamTemMsgXMLList);
+//		adgClassfiedByTeamMsg.dataProvider=new HierarchicalData(sucTeamAdgdata);
+    }
+    private function getSendList(state:String,succor_team_id:String,content:XML):void
+	 {
+	 	if(state == "checked"){
+			teamSelectedData.addItem(content);
+		}
+		else if(state == "unchecked"){
+			for(var i:int=0;i<teamSelectedData.length;i++){
+				if(teamSelectedData.getItemAt(i).@succor_team_id==succor_team_id){
+					teamSelectedData.removeItemAt(i);
+					break;
+				}
+			}
+		}
+	 }
+	/*******救援队伍类型*******/
+	private function sucTypeLoadedHandler():void
+	{
+		lstSucType.dataProvider=stm.getSucTypeObjectArray();
+	}    
+	private function lstSucTypeChangeHandler(event:ListEvent):void
+	{
+		var dataObj:Object=event.itemRenderer.data as Object;
+		var obj:Object={suc_type_id:dataObj.code};
+//		SiteContainer.dispatchEvent(new AppEvent(AppEvent.ADLI_SUCCOR_TEAM_SELECT, false, false, obj));
+		sucTeamSelectHandler(obj);
+	}
+	private function sucTeamSelectHandler(obj:Object):void
+	{
+		var selectedSucType:Object=obj;
+		var suc_type_id:String=selectedSucType.suc_type_id;
+		var xmlList:XMLList=stbst.getSucTeamsByType(suc_type_id);
+		trace(xmlList);
+		var tempXmlList:XMLList = xmlList..sucTeam;
+		if (xmlList != null && xmlList.length() > 0 && tempXmlList!=null && tempXmlList.length()>0)
+		{
+			for each(var itemXml:XML in xmlList..sucTeam)
+			{
+				itemXml.@checkbox="true";
+			}
+			adgDatas=new XMLListCollection(xmlList);
+			if(xmlListTeam != null && xmlList..sucTeam.length()>0){
+					xmlListTeam.source = xmlList..sucTeam;
+					xmlListTeam.refresh();
+			}
+			adgClassfiedBySucTeam.dataProvider = new HierarchicalData(adgDatas);
+			if(StringUtil.trim(searchTeam.text).length>0 && xmlListTeam!=null && xmlList..sucTeam.length()>0)//有过滤条件时进行过滤
+			{
+				xmlListTeam.refresh();
+			}
+		}
+		else
+		{
+			adgClassfiedBySucTeam.dataProvider = null;
+		}
+		sucTeamMsgXMLList = xmlList;
+		this.updateDisplayList(this.width,this.height);
+	}
+	private function filterTypeOrName(item:Object):Boolean {
+		var node:XML=XML(item);
+		var searchText:String=StringUtil.trim(searchTeam.text);
+		var result:Boolean=false;
+		if(node.@isBranch=="false"){
+			if(node.hasOwnProperty("@name")){
+				result||=node.@name.match(new RegExp(searchText, "i"));
+			} 
+			if(node.hasOwnProperty("@contact_name")){
+				result||=node.@contact_name.match(new RegExp(searchText, "i"));
+			}
+		}
+		return result;
+	} 
+	private function searchTeamInfos():void{
+		if(searchTeam !=null && adgDatas!=null && StringUtil.trim(searchTeam.text).length>0){
+			if(adgDatas.length > 0){
+				if(xmlListTeam.length>0)
+				{
+					var temStr:String = adgDatas[0].toString();
+					temStr = temStr.substring(0,temStr.indexOf(">")+1);
+					temStr = temStr + xmlListTeam.toXMLString() + "</suc_type>";
+					adgClassfiedBySucTeam.dataProvider=new HierarchicalData(new XMLListCollection(new XMLList(temStr)));
+					adgClassfiedBySucTeam.displayItemsExpanded = true;
+					isFilterTeam=true;
+				}
+				else
+				{
+					adgClassfiedBySucTeam.dataProvider=null;
+					isFilterTeam=false;
+				}
+			}
+		}
+		else
+		{
+			if(adgDatas!=null && adgDatas.length > 0)
+			{
+				adgClassfiedBySucTeam.dataProvider=new HierarchicalData(adgDatas);
+			}
+			else if(adgClassfiedBySucTeam!=null)
+			{
+				adgClassfiedBySucTeam.dataProvider=null;
+			}
+			isFilterTeam=false;
+		}
+	}
+	private function readyToSend():void{
+		sendMsgList(teamSelectedData);
+	}
+	private function sendMsgList(data:XMLListCollection):void{
+		var sendPeopleArrc:ArrayCollection = new ArrayCollection();
+		for each(var itemXmlList:XML in data)
+			{
+//				var name:String = itemXmlList.@name;
+				var name:String = itemXmlList.@contact_name;
+				var cell:String = itemXmlList.@cell;
+				var obj:Object = {"name":name,"cell":cell,"postName":''};
+				sendPeopleArrc.addItem(obj);
+			}
+		sendConfirmWin(sendPeopleArrc);
+	}
+	private function sendConfirmWin(sendArrc:ArrayCollection):void{
+		var exMsgDetailsWin:exDetailPopUpWins = new exDetailPopUpWins();
+		exMsgDetailsWin.exMsgArrc = sendArrc;
+		exMsgDetailsWin.expertMark="FROM_EXPERT";//这个标示表示短信内容不用加职位
+		PopUpManager.addPopUp(exMsgDetailsWin,this,true);
+		PopUpManager.centerPopUp(exMsgDetailsWin);
+	}
+	private function selectAllHandler():void
+	{
+		
+	}
+//	//多人传真
+//	private function popUpFaxWin():void{
+//		var loginStatus:String = ExternalInterface.call("loginStatusHandler");
+//		if(loginStatus == "unLogin"){
+//			var voiceLoginWin:voiceLogin = new voiceLogin();
+//			voiceLoginWin.x=this.parentApplication.width/3;
+//			voiceLoginWin.y=this.parentApplication.height/5;
+//			voiceLoginWin.voiceMark="Faxes";
+//			PopUpManager.addPopUp(voiceLoginWin, this, true);
+//		}
+//		else{
+//			var event:CommonEvent=new CommonEvent("");
+//			popUpFaxHandler(event);
+//		}
+//	}
+//	public function popUpFaxHandler(evt:CommonEvent):void{
+//		var msgArrc:ArrayCollection = new ArrayCollection;
+//		var sendArr:Array = getSendList();
+//		for each(var tem:Object in sendArr)
+//		{
+//			if(addrType=="people")
+//			{
+//			var obj:Object={"NAME_C":tem.NAME,"FAX_NUMBER":tem.FAX,"CONTACTOR_MOBILE":tem.CELL,"CONTACTOR_TEL":tem.TEL};
+//			msgArrc.addItem(obj);
+//			}
+//			else{
+//			var objd:Object={"NAME_C":tem.DEPT_NAME,"FAX_NUMBER":tem.DUTY_FAX,"CONTACTOR_MOBILE":tem.DUTY_CELL,"CONTACTOR_TEL":tem.DUTY_TEL};
+//			msgArrc.addItem(objd);
+//			}
+//		}
+//		var faxWin:faxesWin = new faxesWin();
+//		faxWin.x=this.parentApplication.width/3;
+//		faxWin.y=this.parentApplication.height/5;
+//		faxWin.faxArrc=msgArrc;
+//		PopUpManager.addPopUp(faxWin, this, false);
+//	}
+//	//发邮件
+//	public function sendMail():void {
+//		var str:String = "mailto:";
+//		var sendArr:Array = getSendList();
+//		for each(var tem:Object in sendArr)
+//		{
+//			if(tem.hasOwnProperty("EMAIL") && String(tem.EMAIL).length>0)
+//			{
+//				str = str + tem.EMAIL +";";
+//			}
+//		}
+//		var closeSucUrl:URLRequest=new URLRequest(str);
+//	    navigateToURL(closeSucUrl,"_self");
+//	}	
+    ]]>
+  </mx:Script>  
+    <mx:XMLListCollection id="xmlListTeam" filterFunction="filterTypeOrName" collectionChange="searchTeamInfos()" />	
+ 	<mx:HDividedBox horizontalGap="5" width="100%" height="100%" backgroundColor="white"> 	
+ 	<mx:VBox width="20%" height="100%" verticalGap="10">
+		<mx:Label text="救援队伍类型:"
+				  styleName="WidgetText"/>
+		<mx:List id="lstSucType"
+				 width="98%"
+				 height="100%" paddingLeft="25"
+				 change="lstSucTypeChangeHandler(event)"/>
+ 	</mx:VBox>
+	<mx:VBox height="100%" width="80%">
+		<mx:ControlBar paddingTop="0" paddingBottom="0">
+		 	<mx:ToggleButtonBar id="teamTg" dataProvider="{teamVS}"/>
+		 	<mx:Button visible="{teamTg.selectedIndex==1}" width="{teamTg.selectedIndex!=1?0:80}" label="短信确认" click="readyToSend();"/>
+		 	<mx:HBox horizontalGap="-15" width="{teamTg.selectedIndex!=0?0:250}" visible="{teamTg.selectedIndex!=1}">
+		 	<mx:Label text="救援队名称/联系人：" visible="{teamTg.selectedIndex!=1}" width="{teamTg.selectedIndex!=0?0:150}"/>
+			<mx:TextInput text="" id="searchTeam" width="{teamTg.selectedIndex!=0?0:100}" change="xmlListTeam.refresh();" backgroundColor="0xffffff" color="0x000000" visible="{teamTg.selectedIndex!=1}"/>
+    		</mx:HBox>
+		    </mx:ControlBar>
+			 <mx:ViewStack id="teamVS" width="100%" height="100%">
+			 <mx:VBox label="救援队" width="100%" height="100%">
+			<mx:AdvancedDataGrid id="adgClassfiedBySucTeam"
+								 width="100%"
+								 height="100%"
+								 sortExpertMode="true"
+								 defaultLeafIcon="undefined"
+								 displayItemsExpanded="true"
+								 groupItemRenderer="com.sunwah.components.checkADG.CheckADGRenderer">
+				<mx:columns>
+					<mx:AdvancedDataGridColumn dataField="@name"
+											   headerText="救援队类型/名称"
+											   width="160"/>
+					<mx:AdvancedDataGridColumn dataField="@contact_name"
+											   headerText="联系人"/>
+					<mx:AdvancedDataGridColumn headerText="移动电话">
+								<mx:itemRenderer>
+									<mx:Component>
+										<mobiles:voiceCall mobileNum="{data.@cell}"/>
+									</mx:Component>
+								</mx:itemRenderer>
+					</mx:AdvancedDataGridColumn>
+					<mx:AdvancedDataGridColumn dataField="@phone_num"
+											   headerText="固定电话"/>
+					<mx:AdvancedDataGridColumn dataField="@team_Addr" dataTipField="@team_Addr" showDataTips="true"
+											   headerText="地址"/>
+					<mx:AdvancedDataGridColumn dataField="@eMail"  dataTipField="@eMail" showDataTips="true"
+											   headerText="邮箱"/>
+				</mx:columns>
+			</mx:AdvancedDataGrid>
+			</mx:VBox>
+			 <mx:VBox label="短信列表" width="100%" height="100%">
+				<mx:AdvancedDataGrid id="adgClassfiedByTeamMsg"
+									 width="100%"
+									 height="100%"
+									 sortExpertMode="true"
+									 dataProvider="{teamSelectedData}"
+									 >
+					 <mx:columns>
+						<mx:AdvancedDataGridColumn dataField="@name"
+												   headerText="救援队类型/名称"
+												   width="190"/>
+						<mx:AdvancedDataGridColumn dataField="@contact_name"
+												   headerText="联系人"/>
+						<mx:AdvancedDataGridColumn headerText="移动电话">
+							<mx:itemRenderer>
+								<mx:Component>
+									<mobiles:voiceCall mobileNum="{data.@cell}"/>
+								</mx:Component>
+							</mx:itemRenderer>
+						</mx:AdvancedDataGridColumn>
+						<mx:AdvancedDataGridColumn dataField="@phone_num"
+												   headerText="固定电话"/>
+						<mx:AdvancedDataGridColumn dataField="@team_Addr" dataTipField="@team_Addr" showDataTips="true"
+												   headerText="地址"/>
+						<mx:AdvancedDataGridColumn dataField="@eMail" dataTipField="@eMail" showDataTips="true"
+												   headerText="邮箱"/>
+					</mx:columns>
+				</mx:AdvancedDataGrid>
+				<!--
+				<mx:HBox height="5%" width="99%" paddingLeft="5" horizontalAlign="left" verticalAlign="middle" horizontalGap="10">	
+					<mx:CheckBox id="selectAll" label="全选" width="51" height="25" fontSize="12" selected="false" change="selectAllHandler();"/>
+					<mx:Button label="发送短信" useHandCursor="true" buttonMode="true" click="readyToSend();"  height="25" fontSize="12" width="80"/>
+					<mx:Button label="传真发送" useHandCursor="true" buttonMode="true" height="25" width="85" fontSize="12" click="popUpFaxWin();"/>
+					<mx:Button label="发送邮件" useHandCursor="true" buttonMode="true" height="25" width="85" fontSize="12" click="sendMail();"/>
+				</mx:HBox>-->
+		  </mx:VBox>
+		 </mx:ViewStack>
+	</mx:VBox>
+	</mx:HDividedBox>	
+	
+	<m:SucTeamsTypeManager id="stm" sucTypeLoaded="sucTypeLoadedHandler()"/>
+	<m:SuccorTeamsBySucTypeManager id="stbst"/>
+</mx:Canvas>

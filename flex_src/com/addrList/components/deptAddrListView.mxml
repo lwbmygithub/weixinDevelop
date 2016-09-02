@@ -1,0 +1,744 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%"
+	xmlns:MobileNum="com.addrList.components.*"
+	xmlns:ilog="http://www.ilog.com/2007/ilog/flex"
+	xmlns:local="*" creationComplete="init()" horizontalScrollPolicy="off"
+	xmlns:deptCbx="com.addrList.checkBox.*" >
+	<mx:RemoteObject id="addressListRO" destination="addressListRO" fault="faultHandler(event)">
+		<mx:method name="getAllDeptTypeTree" result="getAllDeptTypeTree_resultHandler(event)"/>
+		<mx:method name="getDeptRootType" result="getDeptRootType_resultHandler(event)"/>
+		<mx:method name="getDeptPeopleInfos" result="getDeptPeopleInfos_resultHandler(event)"/>
+	</mx:RemoteObject>
+	<mx:Script source="utils.as"/>   <!--FF 2009-10-30 导出excel表 -->
+	<mx:Script>
+    <![CDATA[
+    	import mx.events.CloseEvent;
+    	import mx.utils.StringUtil;
+//    	import com.esri.solutions.flexviewer.widgets.AboutWidget;
+    	import mx.core.Application;
+    	import com.addrList.components.faxes.faxesWin;
+//    	import com.esri.solutions.flexviewer.SiteContainer;
+    	import mx.controls.Label;
+    	import mx.printing.FlexPrintJob;
+    	import mx.managers.PopUpManager;
+    	import controls.ilog.components.PrintDialog;
+    	import mx.events.ListEvent;
+    	import mx.collections.ArrayCollection;
+    	import mx.collections.XMLListCollection;
+    	import mx.rpc.events.ResultEvent;
+    	import mx.rpc.events.FaultEvent;
+    	import mx.controls.Alert;
+      	import mx.events.ItemClickEvent;
+      	import mx.utils.URLUtil;
+      	
+      	import com.addrList.checkBox.deptCheckBox; 	//FF 2009-10-30 复选框
+    	import com.addrList.checkBox.DeptEvents;	//FF 2009-10-30 复选框
+    	import com.addrList.expertAddrList.exDetailPopUpWins;	//FF 2009-10-30 弹出发送短信窗口
+      [Bindable]
+      public var msgArrc:ArrayCollection = new ArrayCollection;	//FF 2009-10-30 checkbox 值列表
+      [Bindable]
+      public var deptCbxRenderer:IFactory = new ClassFactory(com.addrList.checkBox.deptCheckBox); //FF 2009-10-30 复选框
+    	
+      [Bindable]
+      public var rawXML:XML = new XML;
+      [Bindable]
+      public var deptXML:XMLList;
+      [Bindable]
+      public var deptRootTypeArrc:ArrayCollection = new ArrayCollection;
+      [Bindable]
+      public var deptPeopleInfosArrc:ArrayCollection = new ArrayCollection;
+      [Bindable]
+      public var deptPeopleInfosTemArrc:Array = new Array;
+      [Bindable]
+      public var voiceArrc:ArrayCollection = new ArrayCollection;
+      private var deptIdSel:String="";
+//    public var voiceMeetingWin:voiceMeeting;
+      
+      	private var port:int;
+       	private var serverName:String;
+        [Bindable]
+        private var serverUrl:String; 
+        [Bindable]     
+      	public var voiceSelArr:Array = new Array();
+      private function init():void{
+      	this.addEventListener("deptPoint",deptCheckBoxHandler);		//FF 2009-10-30 监听 复选框 
+      	addressListRO.getDeptRootType();
+      	var realmId:String=ExternalInterface.call("toGetRealmId");
+      	if(realmId!=null){
+      		addressListRO.getAllDeptTypeTree(realmId);
+      	}
+      	else{
+      		addressListRO.getAllDeptTypeTree('101');
+      	}
+//      	SiteContainer.addEventListener(CommonEvent.VOICE_TOPIC,popUpVoiceRegisterHandler);// 监听 弹出创建多人会议topic之前的注册事件
+//      	SiteContainer.addEventListener(CommonEvent.FAX_REGISTERED,popUpFaxHandler); 
+      	getFullUrladd();
+      }
+      
+      //获取当前url路径
+      	private function getFullUrladd():void
+		{
+			var url:String = Application.application.url;
+			port = URLUtil.getPort(url);
+            serverName = URLUtil.getServerName(url);
+            serverUrl='http://'+serverName+':'+port+'/jm_emDuty/ExcelExport.jsp';        
+		}
+      
+//      private function onClick(e:ItemClickEvent):void
+//      {
+//      	if(chart.dataProvider!=null){
+//      		switch(e.index)
+//	        {
+//	          case 0: chart.zoomBy(2, true); break;
+//	          case 1: chart.zoomBy(0.5, true); break;
+//	          case 2: chart.fitToContents(true); break;
+//	          case 3: printPrompt(); break;
+//	        }
+//      	}
+//      }
+      private function getAllDeptTypeTree_resultHandler(event:ResultEvent):void{
+      	rawXML = XML(event.result);
+//      	chart.dataProvider = rawXML;
+      	tree.dataProvider = new XMLListCollection(new XMLList(rawXML));
+      	tree.visible = true;
+      }
+      private function getDeptRootType_resultHandler(event:ResultEvent):void{
+      	deptRootTypeArrc = event.result as ArrayCollection;
+      }
+      private function faultHandler(event:FaultEvent):void{
+      	Alert.show(event.fault.faultString);
+      }
+      private function clickDeptHandler(event:ItemClickEvent):void{
+      	deptIdSel = event.item.DEPT_ID;
+      	var xmlSel:XMLList = rawXML.dept.(@dept_id==deptIdSel);
+//      	chart.dataProvider=xmlSel;
+      	tree.dataProvider = new XMLListCollection(xmlSel);
+      }
+      private function getDeptPeopleInfos_resultHandler(event:ResultEvent):void{
+      	deptPeopleInfosArrc = event.result as ArrayCollection;
+      	deptPeopleInfosArrc.filterFunction = dataFilter;
+      	if(search!=null && StringUtil.trim(search.text).length>0){
+      		deptPeopleInfosArrc.refresh();
+      	}
+      	//Modify by mazole 09.11.5 FOR:刷新列表时checkBox保持之前状态
+      	for each(var deptItem:Object in deptPeopleInfosArrc){
+      		for each(var msgItem:Object in msgArrc){
+      			if(deptItem.PEOPLE_ID==msgItem.PEOPLE_ID && msgItem.isAdd==true){
+      				deptItem.isAdd=true;
+      			}
+      		}
+      	}
+      }
+      
+       private function initOrgChart():void {
+//	    chart.addEventListener(OrgChartEvent.CHANGE, chart_changeHandler);
+  		}
+  		private function updateDeptPeopleInfos(item:XML, fromTree:Boolean=false):void{
+  			if(item!=null){
+  				var deptId:String = item.@dept_id;
+  				addressListRO.getDeptPeopleInfos(deptId);
+  			}
+  			if(!fromTree){
+  				ensureItemVisibilityInTree(item);             
+				tree.selectedItem = item; 
+  			}
+  		}
+  		/**char 处理***START****/
+//		 private function chart_changeHandler(event:OrgChartEvent):void {  
+//		    if (event.item == null) {
+//		      tree.selectedItem = null;      
+//		    }
+//			else {
+//			  updateDeptPeopleInfos(event.item as XML,false);
+//			  //不需要清空 Mazole 2009.11.5
+//			  selectAllContact.selected = false;	//FF 2009-10-30			  
+////			  msgArrc.removeAll();		//FF 2009-10-30 
+////      		  msgArrc.refresh();		//FF 2009-10-30 
+//		    }
+//  		}
+  		private function ensureItemVisibilityInTree(item:Object):void {    
+		    var xml:XML = item as XML;
+		    
+		    //check if the item is displayed
+		    if (!tree.isItemVisible(item)){
+		      var p:XML = xml.parent() as XML;
+		      while(p != null) {
+		        tree.expandItem(p, true);
+		        p = p.parent() as XML;
+		      }      
+		    }          
+		  }
+		/*****char 处理***END****/
+		/*******树处理**START***/
+	 	private function initTree():void {
+		    tree.addEventListener(ListEvent.CHANGE, tree_changeHandler);   
+	  	}
+	  	private function tree_changeHandler(event:ListEvent):void{
+//	  		chart.selectedItems = [tree.selectedItem];    		    
+		    if (tree.selectedItem) {
+//		      if (chart.viewMode == OrgChart.GLOBAL_VIEW_MODE) {
+//		        chart.fitToSubTree(tree.selectedItem, true);  
+		      }       
+		      updateDeptPeopleInfos(tree.selectedItem as XML,true);
+		       //不需要清空 Mazole 2009.11.5
+//		      selectAllContact.selected = false;	//FF 2009-10-30			  
+//			  msgArrc.removeAll();		//FF 2009-10-30 
+//      		  msgArrc.refresh();		//FF 2009-10-30  
+		    }
+//	  	}
+	  	/*******树处理**END***/
+	  	/*******打印********/
+//	  	private function printPrompt():void {
+//		    var dialog:PrintDialog = new PrintDialog();
+//		    dialog.printFunction = print;
+//		    PopUpManager.addPopUp(dialog, this, true);
+//		    PopUpManager.centerPopUp(dialog);
+//		    dialog.setFocus();
+//		  }
+//		 
+//		 // The function to print the output.
+//		  private var maleIndex:int = 0;
+//		  private var femaleIndex:int = 0;
+//  
+//		  public function print(cols:Number, lod:Number, abc:Boolean):void {
+//		    // Create a FlexPrintJob instance.
+//		    var printJob:FlexPrintJob = new FlexPrintJob();
+//		    printJob.printAsBitmap = true;
+//		    
+//		    // Start the print job.
+//		    if (printJob.start() == false)
+//		      return; 
+//		
+//		    var thePrintView:Canvas = new Canvas();
+//		    addChild(thePrintView);
+//		        
+//		    var printOrgChart:PrintOrgChart = new PrintOrgChart();
+//		    
+//		    // OrgChart uses all pages room
+//		    printOrgChart.percentWidth = 100;
+//		    printOrgChart.percentHeight = 100;
+//		    thePrintView.addChild(printOrgChart);
+//		
+//		    var pageNum:Label = new Label();
+//		    pageNum.setStyle("color", 0xCCCCCC);
+//		    pageNum.text = "Row: 1 - Column: 1";
+//		    thePrintView.addChild(pageNum);
+//		    
+//		    maleIndex = 0;
+//		    femaleIndex = 0;
+//		    
+////		    printOrgChart.dataProvider = chart.dataProvider;
+////		    printOrgChart.fields.layoutFunction = getLayout;
+////		    printOrgChart.fields.positionFunction = getPosition;
+////		    printOrgChart.fields.pictureFunction = getImage;
+////		    printOrgChart.fields.phoneFunction = getPhone;
+////		    printOrgChart.fields.mobilePhoneFunction = getMobilePhone;
+////		    printOrgChart.fields.faxFunction = getFax;
+////		    printOrgChart.fields.businessUnitFunction = getBusinessUnit;
+//		    printOrgChart.setStyle("linkRadius", 15);
+//		    printOrgChart.setStyle("linkThickness", 3);
+//		    printOrgChart.setStyle("layoutYPadding", 40);    
+//		
+////		    printOrgChart.showSiblings = chart.showSiblings;
+////		    printOrgChart.viewMode = chart.viewMode;
+////		    printOrgChart.localItem = chart.localItem;
+//		    printOrgChart.allowBoxCut = ! abc;
+//		    printOrgChart.validateProperties();
+//		    
+//		    printOrgChart.printingScaleFactor = (cols * printJob.pageWidth) / printOrgChart.modelWidth ;
+//		    
+//		    if (lod == -1) {
+////		      printOrgChart.scale = chart.scale;
+//		    } else {
+//		      printOrgChart.scale = lod;
+//		    }    
+//		          
+//		    // Set the print view properties.
+//		    thePrintView.width=printJob.pageWidth;
+//		    thePrintView.height=printJob.pageHeight;
+//		    thePrintView.validateNow();
+//		          
+//		    // Queue first page  
+//		    printJob.addObject(thePrintView);
+//		    while (printOrgChart.validNextPage)
+//		    {
+//		      printOrgChart.nextPage();
+//		      pageNum.text = "Row: " + (printOrgChart.currentRow + 1) + " - Column: " + (printOrgChart.currentColumn + 1);
+//		      thePrintView.validateNow();      
+//		      //Queue the additional page.
+//		      printJob.addObject(thePrintView);
+//		    }
+//		    
+//		    // All pages are queued
+//		    removeChild(thePrintView);    
+//		    // Send the job to the printer.
+//		    printJob.send();
+//		  }
+		  
+//		  private function getLayout(item:Object):String {
+//		    if (chart.viewMode == OrgChart.GLOBAL_VIEW_MODE) {
+//		      return item.@layout; 
+//		    } else {      
+//		      if (item.@assistant.toString() == "true") {
+//		        return "leftHanging";
+//		      } else {
+//		        return "rightHanging";
+//		      }
+//		    }
+//		  }
+	  	/*****打印*********/
+	  	
+	  	//*********FF 2009-10-30 start *************************
+	  	//checkBox监听处理
+      	public function deptCheckBoxHandler(event:DeptEvents):void{
+      		var mark:Boolean = false;
+      		voiceSelArr = new Array();
+	      	if(event.checkBoxEvePoints.isAdd){
+	      		msgArrc.addItem(event.checkBoxEvePoints);
+	      		voiceSelArr.push({NAME_C:event.checkBoxEvePoints.NAME_C,
+	      		CONTACTOR_MOBILE:event.checkBoxEvePoints.CONTACTOR_MOBILE,DEPT_NAME:event.checkBoxEvePoints.DEPT_NAME,
+	      		CONTACTOR_TEL:event.checkBoxEvePoints.CONTACTOR_TEL,ADD_VALUE:event.checkBoxEvePoints.isAdd,
+	      		PEOPLE_ID:event.checkBoxEvePoints.PEOPLE_ID,MARK_FROM:"DEPT_ADDR"});
+	      	}
+			else{
+				msgArrc=checkBoxChange(event.checkBoxEvePoints.PEOPLE_ID,msgArrc);
+				voiceSelArr.push({NAME_C:event.checkBoxEvePoints.NAME_C,
+	      		CONTACTOR_MOBILE:event.checkBoxEvePoints.CONTACTOR_MOBILE,DEPT_NAME:event.checkBoxEvePoints.DEPT_NAME,
+	      		CONTACTOR_TEL:event.checkBoxEvePoints.CONTACTOR_TEL,ADD_VALUE:event.checkBoxEvePoints.isAdd,
+	      		PEOPLE_ID:event.checkBoxEvePoints.PEOPLE_ID,MARK_FROM:"DEPT_ADDR"});
+//				voiceSelArr=checkBoxChangeS(event.checkBoxEvePoints.PEOPLE_ID,voiceSelArr);
+	      	}
+	      	msgArrc.refresh();
+//	      	var objTemp:Object =new Object();
+//	      	objTemp.MSG_ARRC=msgArrc;
+	      	ExternalInterface.call("sendVoiceList",voiceSelArr);
+//	      	SiteContainer.dispatchEvent(new CommonEvent(CommonEvent.VOICE_NUMS,false,false,msgArrc));     	
+	     }
+	     private function checkBoxChangeS(cbxPeopleId:String,arrC:Array):Array{
+	     	for (var i:int=0;i<arrC.length;i++){
+	     		if(arrC[i].PEOPLE_ID == cbxPeopleId){
+	     			arrC.splice(i,1);
+	     		}
+	     	}
+	     	return arrC;
+	     }
+	     private function checkBoxChange(cbxPeopleId:String,arrC:ArrayCollection):ArrayCollection{
+	     	for(var i:int=0;i<arrC.length;i++){
+	      			if(arrC.getItemAt(i).PEOPLE_ID == cbxPeopleId){
+	      				arrC.removeItemAt(i);
+	      			}
+	      		}
+	      		return arrC;
+	     }
+	  	
+	  	//FF 2009-10-30 全选按钮
+	  public function selectAll():void{
+		if(selectAllContact.selected==true){	//全选时		
+//			if(msgArrc!=null && msgArrc.length>0){
+//		  		msgArrc.removeAll();
+//		  		msgArrc.refresh();
+//		  		}
+			for each(var itemSel:Object in deptPeopleInfosArrc){
+				if(!itemSel.hasOwnProperty('isAdd')){
+					itemSel.isAdd = false;
+				}
+				if(itemSel.isAdd == false)
+				{
+					itemSel.isAdd = true;
+					msgArrc.addItem(itemSel);	      
+				}				    												
+			}			
+		}else {  //反全选	
+			for each(var itemSels:Object in deptPeopleInfosArrc){
+				itemSels.isAdd = false;
+				for (var i:int=0; i<msgArrc.length; i++){
+					if(msgArrc.getItemAt(i).PEOPLE_ID == itemSels.PEOPLE_ID){
+						msgArrc.removeItemAt(i);
+					}
+				}
+			}
+			msgArrc.refresh();
+		}
+		selectForVoiceMeeting(msgArrc);
+//		SiteContainer.dispatchEvent(new CommonEvent(CommonEvent.VOICE_NUMS,false,false,msgArrc));//Cancel by mazole FOR:取消这里的多人语音功能
+		deptPeopleInfosArrc.refresh();
+	} 
+	private function selectForVoiceMeeting(voiceArrc:ArrayCollection):void{
+		var voiceSelAllArrc:Array = new Array;
+		for each(var item:Object in voiceArrc){
+			voiceSelAllArrc.push({NAME_C:item.NAME_C,
+	  		CONTACTOR_MOBILE:item.CONTACTOR_MOBILE,DEPT_NAME:item.DEPT_NAME,
+	  		CONTACTOR_TEL:item.CONTACTOR_TEL,ADD_VALUE:item.isAdd,
+	  		PEOPLE_ID:item.PEOPLE_ID,MARK_FROM:"DEPT_ADDR"});
+		}
+		ExternalInterface.call("sendVoiceList",voiceSelAllArrc);
+	}
+	
+	//弹出短信发送窗口
+	public function msgBtnClick():void{
+		var exMsgDetailsWin:exDetailPopUpWins = new exDetailPopUpWins();
+		exMsgDetailsWin.exMsgArrc = msgArrc;
+//		exMsgDetailsWin.sourceFrom = 6;	//sourceFrom为字典，6为日常联络
+		PopUpManager.addPopUp(exMsgDetailsWin,this,false);
+		PopUpManager.centerPopUp(exMsgDetailsWin);
+	}
+	
+	//发邮件
+	public function sendMail():void {
+		var str:String = "mailto:";
+		var alertStr:String = "";
+		var closeSucUrl:URLRequest;
+		if(msgArrc!=null && msgArrc.length>0) {
+			for each(var item:Object in msgArrc) {
+				if(item.E_MAIL != null && item.E_MAIL != "" && item.E_MAIL != "null"){
+					str = str + item.E_MAIL +";";
+				}
+				else{
+					alertStr = alertStr + item.NAME_C + "、";
+				}
+			}
+			if(str.length==7)
+			{Alert.show("邮箱均为空，不能进行邮件发送操作。");}
+			else if(alertStr.length>0)
+			{
+				Alert.show(alertStr.substring(0,alertStr.length-1) + " 邮箱为空，不会加入邮箱发送列表中。", "", Alert.YES|Alert.NO, null, function(evt:CloseEvent):void{
+					if (evt.detail == Alert.YES){	
+						if(str.length>7)
+						{
+							closeSucUrl=new URLRequest(str);
+		    				navigateToURL(closeSucUrl,"_self");
+						}	              
+					}
+					else if(evt.detail == Alert.NO){}
+				}, null, Alert.YES);
+			}
+			else
+			{
+				closeSucUrl=new URLRequest(str);
+		    	navigateToURL(closeSucUrl,"_self");
+			}
+		}
+		else
+		{
+			Alert.show("邮箱均为空，不能进行邮件发送操作。");
+//			closeSucUrl=new URLRequest(str);
+//		    navigateToURL(closeSucUrl,"_self");
+	 	}
+	}
+	
+	//excel headerText勾选
+	public function selectHeaderText(i:int):void {		
+		this["SelectHeaderText"+i].visible = ! this["SelectHeaderText"+i].visible;		
+	}
+	
+	//全选 导出项
+	public function selectAllPopUpCheckBox():void {
+		for(var i:int = 1; i < 9; i++) {
+			this["popUpCheckBox"+i].selected = ! this["popUpCheckBox"+i].selected;
+			this["SelectHeaderText"+i].visible = ! this["SelectHeaderText"+i].visible;
+		}
+	}
+	  	//*********FF 2009-10-30 end ***************************
+	 //多人电话会议
+	private function popUpVoiceTopic():void{
+		var loginStatus:String = ExternalInterface.call("loginStatusHandler");
+		if(loginStatus == "unLogin"){
+			var voiceLoginWin:voiceLogin = new voiceLogin();
+			voiceLoginWin.x=this.parentApplication.width/3;
+			voiceLoginWin.y=this.parentApplication.height/5;
+			voiceLoginWin.voiceMark="Meeting";
+			PopUpManager.addPopUp(voiceLoginWin, this, true);
+		}
+		else{
+			var event:CommonEvent = new CommonEvent("");
+			popUpVoiceRegisterHandler(event);
+		}
+	}
+	public function popUpVoiceRegisterHandler(event:CommonEvent):void{
+	} 	
+	//多人传真
+	private function popUpFaxWin():void{
+		var loginStatus:String = ExternalInterface.call("loginStatusHandler");
+		if(loginStatus == "unLogin"){
+			var voiceLoginWin:voiceLogin = new voiceLogin();
+			voiceLoginWin.x=this.parentApplication.width/3;
+			voiceLoginWin.y=this.parentApplication.height/5;
+			voiceLoginWin.voiceMark="Faxes";
+			PopUpManager.addPopUp(voiceLoginWin, this, true);
+		}
+		else{
+			var event:CommonEvent=new CommonEvent("");
+			popUpFaxHandler(event);
+		}
+	}
+	public function popUpFaxHandler(evt:CommonEvent):void{
+		var faxWin:faxesWin = new faxesWin();
+		faxWin.x=this.parentApplication.width/3;
+		faxWin.y=this.parentApplication.height/5;
+		faxWin.faxArrc=msgArrc;
+		PopUpManager.addPopUp(faxWin, this, false);
+	}	
+	 public function removeAllClick():void{
+	 	for each(var itemSels:Object in deptPeopleInfosArrc){
+				itemSels.isAdd = false;
+			}
+    	selectAllContact.selected = false;
+    	msgArrc.removeAll();
+    	deptPeopleInfosArrc.refresh();
+    	msgArrc.refresh();
+    	ExternalInterface.call("sendVoiceList",msgArrc);
+//    	SiteContainer.dispatchEvent(new CommonEvent(CommonEvent.VOICE_NUMS,false,false,msgArrc));
+    }
+	private function dataFilter(item:Object):Boolean {
+		var searchText:String=StringUtil.trim(search.text);
+		return item.NAME_C.match(new RegExp(searchText, "i"));
+	}
+    ]]>
+  </mx:Script>
+  	<!--<mx:VDividedBox width="100%" height="100%">
+		<mx:VBox width="100%" height="100%">
+		
+		 <mx:HBox paddingLeft="{(this.width/4)}" backgroundAlpha="0" paddingBottom="0" paddingTop="5" horizontalGap="0">
+  		<mx:ButtonBar buttonMode="true" fontSize="12" useHandCursor="true" id="dgId" itemClick="clickDeptHandler(event);" dataProvider="{deptRootTypeArrc}" labelField="DEPT_NAME"
+		    resizeEffect="resize" toolTipField="DEPT_NAME"
+		    />
+		<mx:ButtonBar  iconField="icon"
+		    itemClick="onClick(event)" resizeEffect="resize"
+		    id="bar">
+		    <mx:Object icon="@Embed(source='assets/ilog/icons/zoomin.png')" toolTip="放大"/>
+		    <mx:Object icon="@Embed(source='assets/ilog/icons/unzoom.png')" toolTip="缩小"/>
+		    <mx:Object icon="@Embed(source='assets/ilog/icons/zoomfit.png')" toolTip="居中"/>
+		    <mx:Object icon="@Embed(source='assets/ilog/icons/printer.png')" toolTip="打印"/>      
+  		</mx:ButtonBar>
+		 </mx:HBox>
+		 <mx:HDividedBox width="100%" height="100%">
+		 <mx:VBox width="75%" height="100%">
+		<ilog:OrgChart id="chart" width="100%" height="100%" layoutYPadding="40" initialPosition="fitToContents" 
+                           linkRadius="15" linkThickness="3" showSiblings="false" minZoomLevel="0.2" maxZoomLevel="10" 
+                           allowNavigation="true" allowSelection="true" initialize="initOrgChart();"
+						   linkColor="0xDEDEDE" doubleClickEnabled="true" itemDoubleClick="chart.fitToSubTree(event.item, true);">
+		    <ilog:fields>
+		      <ilog:OrgChartFields layoutFunction="{getLayout}" pictureField="{null}"/>
+		    </ilog:fields>
+		    <ilog:itemRenderer>
+		      <mx:Component>
+		        <ilog:OrgChartItemRenderer borderSkin="{OrgChartGradientBorder}"
+		          borderColor="#94A7CF" rollOverBorderColor="#CEDBEA" selectedBorderColor="#94A7CF" 
+		          selectedRollOverBorderColor="#CEDBEA" color="#ffffff" fontFamily="MyFont" 
+		          fontAntiAliasType="advanced" fontGridFitType="none"/>
+		      </mx:Component>
+		    </ilog:itemRenderer>
+		  </ilog:OrgChart>
+		 </mx:VBox>
+	 	<mx:VBox width="20%" height="100%" paddingRight="5">
+		 	 <mx:Tree id="tree" defaultLeafIcon="undefined" width="100%" fontSize="12" height="100%" labelField="@name" doubleClickEnabled="true" borderThickness="0" visible="false" initialize="initTree();" /> 
+		 </mx:VBox>
+		</mx:HDividedBox>
+		</mx:VBox>
+		<mx:VBox width="100%" height="42%" paddingBottom="5" paddingLeft="5" paddingRight="5">
+			<mx:DataGrid width="100%" height="100%" dataProvider="{deptPeopleInfosArrc}" fontSize="12">
+				<mx:columns>
+					<mx:DataGridColumn itemRenderer="{deptCbxRenderer}" headerText="选择" width="50"/>FF 2009-10-30 复选框 
+					<mx:DataGridColumn dataField="NAME_C" headerText="姓名"/>
+					<mx:DataGridColumn dataField="POST_NAME" headerText="职位"/>
+					<mx:DataGridColumn dataField="CONTACTOR_TEL" headerText="联系电话"/>
+					<mx:DataGridColumn headerText="手机">
+					<mx:itemRenderer>
+						<mx:Component>
+							<MobileNum:voiceCall  mobileNum="{data.CONTACTOR_MOBILE}"/>
+						</mx:Component>
+					</mx:itemRenderer> 
+					</mx:DataGridColumn>
+					<mx:DataGridColumn dataField="E_MAIL" headerText="邮箱"/>
+					<mx:DataGridColumn dataField="FAX_NUMBER" headerText="传真"/>
+					
+				</mx:columns>
+			</mx:DataGrid>
+			<mx:HBox height="5%" paddingLeft="95" width="100%" horizontalAlign="left" verticalAlign="middle" horizontalGap="10">	
+				<mx:CheckBox id="selectAllContact" change="selectAll();" label="全选"  width="51" height="25" fontSize="12"/>
+				<mx:Button label="清空" useHandCursor="true" buttonMode="true" click="removeAllClick();"  height="25" fontSize="12" width="80"/>
+				<mx:Button label="发送短信" useHandCursor="true" buttonMode="true" click="msgBtnClick();"  height="25" fontSize="12" width="80"/>
+				<mx:Button label="发送邮件" useHandCursor="true" buttonMode="true" height="25" width="85" fontSize="12" click="sendMail();"/>
+				//<mx:Button label="电话会议" useHandCursor="true" buttonMode="true" height="25" width="85" fontSize="12" click="popUpVoiceTopic();"/>
+				<mx:Button label="传真发送" useHandCursor="true" buttonMode="true" height="25" width="85" fontSize="12" click="popUpFaxWin();"/>
+				<mx:Button label="导出Excel" useHandCursor="true" buttonMode="true" height="25" width="95" fontSize="12" click="loadDGInExcel(msgArrcGrid,serverUrl);" />
+				<mx:PopUpButton label="选择导出项" x="10" y="494" fontSize="12">
+					<mx:popUp>			
+						<mx:VBox>
+							<mx:HBox backgroundColor="white">
+							<mx:CheckBox label="区域" selected="true" click="selectHeaderText(1);" id="popUpCheckBox1"/>
+							<mx:CheckBox label="姓名" selected="true" click="selectHeaderText(2);" id="popUpCheckBox2"/>
+							<mx:CheckBox label="部门" selected="true" click="selectHeaderText(3);" id="popUpCheckBox3"/>
+							<mx:CheckBox label="职位" selected="true" click="selectHeaderText(4);" id="popUpCheckBox4"/>
+							</mx:HBox>
+							<mx:HBox>
+							<mx:CheckBox label="联系电话" selected="true" click="selectHeaderText(5);" id="popUpCheckBox5"/>
+							<mx:CheckBox label="手机" selected="true" click="selectHeaderText(6);" id="popUpCheckBox6"/>
+							<mx:CheckBox label="邮箱" selected="true" click="selectHeaderText(7);" id="popUpCheckBox7"/>
+							<mx:CheckBox label="传真" selected="true" click="selectHeaderText(8);" id="popUpCheckBox8"/>
+							<mx:CheckBox label="全选" click="selectAllPopUpCheckBox();" />
+							</mx:HBox>				
+						</mx:VBox>			
+					</mx:popUp>
+				</mx:PopUpButton>
+			</mx:HBox>
+		</mx:VBox>	
+  </mx:VDividedBox>
+  
+  FF 2009-10-30 用于导出excel的DataGrid 
+	<mx:DataGrid visible="false" dataProvider="{msgArrc}" fontSize="12" id="msgArrcGrid">
+		<mx:columns>
+		 区域、姓名，部门，职务，联系电话，手机，EMAIL （按区域和部门排序）	
+			<mx:DataGridColumn dataField="REALM_NAME" headerText="区域" width="100" id="SelectHeaderText1"/>
+			<mx:DataGridColumn dataField="name" headerText="姓名" width="70" id="SelectHeaderText2"/>
+			<mx:DataGridColumn dataField="DEPT_NAME" headerText="部门" width="100" id="SelectHeaderText3"/>
+			<mx:DataGridColumn dataField="POST_NAME" headerText="职位" width="100" id="SelectHeaderText4"/>
+			<mx:DataGridColumn dataField="CONTACTOR_TEL" headerText="联系电话" width="130" id="SelectHeaderText5"/>
+			<mx:DataGridColumn dataField="cell" headerText="手机" width="130" id="SelectHeaderText6"/>
+			<mx:DataGridColumn dataField="mail" headerText="邮箱" width="170" id="SelectHeaderText7"/>
+			<mx:DataGridColumn dataField="FAX_NUMBER" headerText="传真" width="130" id="SelectHeaderText8"/>					
+		</mx:columns>
+	</mx:DataGrid>
+	-->
+	<mx:HDividedBox horizontalGap="2" width="100%" height="100%">
+		<mx:VBox width="24%" height="100%" backgroundColor="white">
+			<mx:Text text="点击相应的类型以查询部门人员"/>
+			<mx:Tree id="tree" defaultLeafIcon="undefined" width="100%" fontSize="12" height="100%" labelField="@name" doubleClickEnabled="true" borderThickness="0" visible="false" initialize="initTree();" /> 
+		</mx:VBox>
+		
+		<mx:VBox id="exClassfiedByExpertType" width="76%" height="100%" backgroundColor="white" creationPolicy="all">
+			<mx:ControlBar paddingTop="0" paddingBottom="0">
+				<mx:ToggleButtonBar id="deptTg" dataProvider="{exVS}"/>
+	 			<mx:Label text="姓名：" visible="{deptTg.selectedIndex==0}" />
+				<mx:TextInput text="" id="search" width="120" change="deptPeopleInfosArrc.refresh();" backgroundColor="0xffffff" color="0x000000" visible="{deptTg.selectedIndex==0}"/>
+	 		</mx:ControlBar>
+			<mx:ViewStack id="exVS" width="100%" height="100%" creationPolicy="all">
+				<mx:VBox label="部门人员列表" width="100%" height="100%">
+					<mx:DataGrid width="99%" height="100%" dataProvider="{deptPeopleInfosArrc}" fontSize="12">
+						<mx:columns>
+							<mx:DataGridColumn itemRenderer="{deptCbxRenderer}" headerText="选择" width="50"/>
+							<mx:DataGridColumn dataField="NAME_C" headerText="姓名"/>
+							<mx:DataGridColumn dataField="POST_NAME" headerText="职位"/>
+							<mx:DataGridColumn dataField="CONTACTOR_TEL" headerText="联系电话">
+							<mx:itemRenderer>
+								<mx:Component>
+									<MobileNum:voiceCallSoftPhone  mobileNum="{data.CONTACTOR_TEL}"/>
+								</mx:Component>
+							</mx:itemRenderer> 	
+							</mx:DataGridColumn>
+							<mx:DataGridColumn headerText="手机">
+							<mx:itemRenderer>
+								<mx:Component>
+									<MobileNum:voiceCallSoftPhone  mobileNum="{data.CONTACTOR_MOBILE}"/>
+								</mx:Component>
+							</mx:itemRenderer> 
+							</mx:DataGridColumn>
+							<mx:DataGridColumn dataField="E_MAIL" headerText="邮箱"/>
+							<mx:DataGridColumn dataField="FAX_NUMBER" headerText="传真"/>
+							
+						</mx:columns>
+					</mx:DataGrid>
+					<mx:HBox height="5%" width="99%" paddingLeft="5" horizontalAlign="left" verticalAlign="middle" horizontalGap="10">	
+						<mx:CheckBox id="selectAllContact" change="selectAll();" label="全选" width="51" height="25" fontSize="12" selected="false"/>
+						<mx:Button label="导出Excel" useHandCursor="true" buttonMode="true" height="25" width="95" fontSize="12" click="loadDGInExcel(deptPeopleInfosArrcGrid,serverUrl);" />
+						<mx:PopUpButton label="选择导出项" x="10" y="494" fontSize="12">
+							<mx:popUp>			
+								<mx:VBox>
+									<mx:HBox backgroundColor="white">
+									<mx:CheckBox label="区域" selected="true" click="selectHeaderText(11);" />
+									<mx:CheckBox label="姓名" selected="true" click="selectHeaderText(21);" />
+									<mx:CheckBox label="部门" selected="true" click="selectHeaderText(31);" />
+									<mx:CheckBox label="职位" selected="true" click="selectHeaderText(41);" />
+									</mx:HBox>
+									<mx:HBox>
+									<mx:CheckBox label="联系电话" selected="true" click="selectHeaderText(51);" />
+									<mx:CheckBox label="手机" selected="true" click="selectHeaderText(61);" />
+									<mx:CheckBox label="邮箱" selected="true" click="selectHeaderText(71);" />
+									<mx:CheckBox label="传真" selected="true" click="selectHeaderText(81);" />
+									</mx:HBox>				
+								</mx:VBox>			
+							</mx:popUp>
+						</mx:PopUpButton>
+					</mx:HBox>
+					</mx:VBox>
+					<mx:VBox label="短信列表" width="100%" height="100%">
+						<mx:DataGrid width="99%" height="100%" dataProvider="{msgArrc}" fontSize="12">
+						<mx:columns>
+							<mx:DataGridColumn dataField="NAME_C" headerText="姓名"/>
+							<mx:DataGridColumn dataField="POST_NAME" headerText="职位"/>
+							<mx:DataGridColumn dataField="CONTACTOR_TEL" headerText="联系电话">
+							<mx:itemRenderer>
+								<mx:Component>
+									<MobileNum:voiceCallSoftPhone  mobileNum="{data.CONTACTOR_TEL}"/>
+								</mx:Component>
+							</mx:itemRenderer> 	
+							</mx:DataGridColumn>
+							<mx:DataGridColumn headerText="手机">
+							<mx:itemRenderer>
+								<mx:Component>
+									<MobileNum:voiceCallSoftPhone  mobileNum="{data.CONTACTOR_MOBILE}"/>
+								</mx:Component>
+							</mx:itemRenderer> 
+							</mx:DataGridColumn>
+							<mx:DataGridColumn dataField="E_MAIL" headerText="邮箱"/>
+							<mx:DataGridColumn dataField="FAX_NUMBER" headerText="传真"/>
+							
+						</mx:columns>
+					</mx:DataGrid>
+						<mx:HBox height="5%" width="99%" paddingLeft="5" horizontalAlign="left" verticalAlign="middle" horizontalGap="10">	
+						<!--<mx:CheckBox id="selectAllContact" change="selectAll();" label="全选" width="51" height="25" fontSize="12"/>-->
+						<mx:Button label="清空" useHandCursor="true" buttonMode="true" click="removeAllClick();"  height="25" fontSize="12" width="53"/>
+						<mx:Button label="发送短信" useHandCursor="true" buttonMode="true" click="msgBtnClick();"  height="25" fontSize="12" width="80"/>
+						<mx:Button label="发送邮件" useHandCursor="true" buttonMode="true" height="25" width="85" fontSize="12" click="sendMail();"/>
+						<!--<mx:Button label="电话会议" useHandCursor="true" buttonMode="true" height="25" width="85" fontSize="12" click="popUpVoiceTopic();"/>-->
+						<mx:Button label="传真发送" useHandCursor="true" buttonMode="true" height="25" width="85" fontSize="12" click="popUpFaxWin();"/>
+						<mx:Button label="导出Excel" useHandCursor="true" buttonMode="true" height="25" width="95" fontSize="12" click="loadDGInExcel(msgArrcGrid,serverUrl);" />
+						<mx:PopUpButton label="选择导出项" x="10" y="494" fontSize="12">
+							<mx:popUp>			
+								<mx:VBox>
+									<mx:HBox backgroundColor="white">
+									<mx:CheckBox label="区域" selected="true" click="selectHeaderText(1);" id="popUpCheckBox1"/>
+									<mx:CheckBox label="姓名" selected="true" click="selectHeaderText(2);" id="popUpCheckBox2"/>
+									<mx:CheckBox label="部门" selected="true" click="selectHeaderText(3);" id="popUpCheckBox3"/>
+									<mx:CheckBox label="职位" selected="true" click="selectHeaderText(4);" id="popUpCheckBox4"/>
+									</mx:HBox>
+									<mx:HBox>
+									<mx:CheckBox label="联系电话" selected="true" click="selectHeaderText(5);" id="popUpCheckBox5"/>
+									<mx:CheckBox label="手机" selected="true" click="selectHeaderText(6);" id="popUpCheckBox6"/>
+									<mx:CheckBox label="邮箱" selected="true" click="selectHeaderText(7);" id="popUpCheckBox7"/>
+									<mx:CheckBox label="传真" selected="true" click="selectHeaderText(8);" id="popUpCheckBox8"/>
+									</mx:HBox>				
+								</mx:VBox>			
+							</mx:popUp>
+						</mx:PopUpButton>
+						</mx:HBox>
+				</mx:VBox>
+			</mx:ViewStack>
+		</mx:VBox>
+	</mx:HDividedBox>
+	<mx:DataGrid visible="false" dataProvider="{msgArrc}" fontSize="12" id="msgArrcGrid">
+		<mx:columns>
+			<mx:DataGridColumn dataField="REALM_NAME" headerText="区域" width="100" id="SelectHeaderText1"/>
+			<mx:DataGridColumn dataField="NAME_C" headerText="姓名" width="70" id="SelectHeaderText2"/>
+			<mx:DataGridColumn dataField="DEPT_NAME" headerText="部门" width="100" id="SelectHeaderText3"/>
+			<mx:DataGridColumn dataField="POST_NAME" headerText="职位" width="100" id="SelectHeaderText4"/>
+			<mx:DataGridColumn dataField="CONTACTOR_TEL" headerText="联系电话" width="130" id="SelectHeaderText5"/>
+			<mx:DataGridColumn dataField="CONTACTOR_MOBILE" headerText="手机" width="130" id="SelectHeaderText6"/>
+			<mx:DataGridColumn dataField="E_MAIL" headerText="邮箱" width="170" id="SelectHeaderText7"/>
+			<mx:DataGridColumn dataField="FAX_NUMBER" headerText="传真" width="130" id="SelectHeaderText8"/>					
+		</mx:columns>
+	</mx:DataGrid>
+	<mx:DataGrid visible="false" dataProvider="{deptPeopleInfosArrc}" fontSize="12" id="deptPeopleInfosArrcGrid">
+		<mx:columns>
+			<mx:DataGridColumn dataField="REALM_NAME" headerText="区域" width="100" id="SelectHeaderText11"/>
+			<mx:DataGridColumn dataField="NAME_C" headerText="姓名" width="70" id="SelectHeaderText21"/>
+			<mx:DataGridColumn dataField="DEPT_NAME" headerText="部门" width="100" id="SelectHeaderText31"/>
+			<mx:DataGridColumn dataField="POST_NAME" headerText="职位" width="100" id="SelectHeaderText41"/>
+			<mx:DataGridColumn dataField="CONTACTOR_TEL" headerText="联系电话" width="130" id="SelectHeaderText51"/>
+			<mx:DataGridColumn dataField="CONTACTOR_MOBILE" headerText="手机" width="130" id="SelectHeaderText61"/>
+			<mx:DataGridColumn dataField="E_MAIL" headerText="邮箱" width="170" id="SelectHeaderText71"/>
+			<mx:DataGridColumn dataField="FAX_NUMBER" headerText="传真" width="130" id="SelectHeaderText81"/>					
+		</mx:columns>
+	</mx:DataGrid>
+	
+</mx:Canvas>

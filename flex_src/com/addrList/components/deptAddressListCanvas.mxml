@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%"
+	xmlns:MobileNum="com.addrList.components.*"
+	xmlns:ilog="http://www.ilog.com/2007/ilog/flex"
+	xmlns:local="*" creationComplete="init()" horizontalScrollPolicy="off"
+	xmlns:deptCbx="com.addrList.checkBox.*" >
+	<mx:RemoteObject id="addressListRO" destination="addressListRO" fault="faultHandler(event)">
+		<mx:method name="getAllDeptTypeTree" result="getAllDeptTypeTree_resultHandler(event)"/>
+		<mx:method name="getDeptRootType" result="getDeptRootType_resultHandler(event)"/>
+		<mx:method name="getDeptPeopleInfos" result="getDeptPeopleInfos_resultHandler(event)"/>
+	</mx:RemoteObject>
+	<mx:Script>
+    <![CDATA[
+    	import com.esri.solutions.flexviewer.widgets.AboutWidget;
+    	import mx.core.Application;
+    	import com.addrList.components.faxes.faxesWin;
+    	import com.esri.solutions.flexviewer.SiteContainer;
+    	import mx.controls.Label;
+    	import mx.printing.FlexPrintJob;
+    	import mx.managers.PopUpManager;
+    	import controls.ilog.components.PrintDialog;
+    	import mx.events.ListEvent;
+    	import mx.collections.ArrayCollection;
+    	import mx.collections.XMLListCollection;
+    	import mx.rpc.events.ResultEvent;
+    	import mx.rpc.events.FaultEvent;
+    	import mx.controls.Alert;
+      	import mx.events.ItemClickEvent;
+      	import mx.utils.URLUtil;
+      	
+      [Bindable]
+      public var msgArrc:ArrayCollection = new ArrayCollection;	//FF 2009-10-30 checkbox 值列表
+     
+    	
+      [Bindable]
+      public var rawXML:XML = new XML;
+      [Bindable]
+      public var deptXML:XMLList;
+      [Bindable]
+      public var deptRootTypeArrc:ArrayCollection = new ArrayCollection;
+      [Bindable]
+      public var deptPeopleInfosArrc:ArrayCollection = new ArrayCollection;
+      [Bindable]
+      public var voiceArrc:ArrayCollection = new ArrayCollection;
+      private var deptIdSel:String="";
+//    public var voiceMeetingWin:voiceMeeting;
+      
+      	private var port:int;
+       	private var serverName:String;
+        [Bindable]
+        private var serverUrl:String; 
+        [Bindable]     
+      	public var voiceSelArr:Array = new Array();
+      private function init():void{
+      	addressListRO.getDeptRootType();
+      	var realmId:String=ExternalInterface.call("toGetRealmId");
+      	if(realmId!=null){
+      		addressListRO.getAllDeptTypeTree(realmId);
+      	}
+      	else{
+      		addressListRO.getAllDeptTypeTree("101");
+      	}
+      }
+      
+      private function getAllDeptTypeTree_resultHandler(event:ResultEvent):void{
+      	rawXML = XML(event.result);
+//      	chart.dataProvider = rawXML;
+      	tree.dataProvider = new XMLListCollection(new XMLList(rawXML));
+      	tree.visible = true;
+      }
+      private function getDeptRootType_resultHandler(event:ResultEvent):void{
+      	deptRootTypeArrc = event.result as ArrayCollection;
+      }
+      private function faultHandler(event:FaultEvent):void{
+      	Alert.show(event.fault.faultString);
+      }
+      private function clickDeptHandler(event:ItemClickEvent):void{
+      	deptIdSel = event.item.DEPT_ID;
+      	var xmlSel:XMLList = rawXML.dept.(@dept_id==deptIdSel);
+//      	chart.dataProvider=xmlSel;
+      	tree.dataProvider = new XMLListCollection(xmlSel);
+      }
+      private function getDeptPeopleInfos_resultHandler(event:ResultEvent):void{
+      	deptPeopleInfosArrc = event.result as ArrayCollection;
+      	//Modify by mazole 09.11.5 FOR:刷新列表时checkBox保持之前状态
+      	for each(var deptItem:Object in deptPeopleInfosArrc){
+      		for each(var msgItem:Object in msgArrc){
+      			if(deptItem.PEOPLE_ID==msgItem.PEOPLE_ID && msgItem.isAdd==true){
+      				deptItem.isAdd=true;
+      			}
+      		}
+      	}
+      }
+      
+       private function initOrgChart():void {
+//	    chart.addEventListener(OrgChartEvent.CHANGE, chart_changeHandler);
+  		}
+  		private function updateDeptPeopleInfos(item:XML, fromTree:Boolean=false):void{
+  			if(item!=null){
+  				var deptId:String = item.@dept_id;
+  				addressListRO.getDeptPeopleInfos(deptId);
+  			}
+  			if(!fromTree){
+  				ensureItemVisibilityInTree(item);             
+				tree.selectedItem = item; 
+  			}
+  		}
+  		
+  		private function ensureItemVisibilityInTree(item:Object):void {    
+		    var xml:XML = item as XML;
+		    
+		    //check if the item is displayed
+		    if (!tree.isItemVisible(item)){
+		      var p:XML = xml.parent() as XML;
+		      while(p != null) {
+		        tree.expandItem(p, true);
+		        p = p.parent() as XML;
+		      }      
+		    }          
+		  }
+		/*****char 处理***END****/
+		/*******树处理**START***/
+	 	private function initTree():void {
+		    tree.addEventListener(ListEvent.CHANGE, tree_changeHandler);   
+	  	}
+	  	private function tree_changeHandler(event:ListEvent):void{
+//	  		chart.selectedItems = [tree.selectedItem];    		    
+		    if (tree.selectedItem) {
+//		      if (chart.viewMode == OrgChart.GLOBAL_VIEW_MODE) {
+//		        chart.fitToSubTree(tree.selectedItem, true);  
+		      }       
+		      updateDeptPeopleInfos(tree.selectedItem as XML,true);
+		       //不需要清空 Mazole 2009.11.5
+//		      selectAllContact.selected = false;	//FF 2009-10-30			  
+//			  msgArrc.removeAll();		//FF 2009-10-30 
+//      		  msgArrc.refresh();		//FF 2009-10-30  
+		    }
+//	  	}
+	  	/*******树处理**END***/
+	  	
+	
+	
+	//多人传真
+	private function popUpFaxWin():void{
+		var loginStatus:String = ExternalInterface.call("loginStatusHandler");
+		if(loginStatus == "unLogin"){
+			var voiceLoginWin:voiceLogin = new voiceLogin();
+			voiceLoginWin.x=this.parentApplication.width/3;
+			voiceLoginWin.y=this.parentApplication.height/5;
+			voiceLoginWin.voiceMark="Faxes";
+			PopUpManager.addPopUp(voiceLoginWin, this, true);
+		}
+		else{
+			var event:CommonEvent=new CommonEvent("");
+			popUpFaxHandler(event);
+		}
+	}
+	public function popUpFaxHandler(evt:CommonEvent):void{
+		var faxWin:faxesWin = new faxesWin();
+		faxWin.x=this.parentApplication.width/3;
+		faxWin.y=this.parentApplication.height/5;
+		faxWin.faxArrc=msgArrc;
+		PopUpManager.addPopUp(faxWin, this, false);
+	}	
+	
+    ]]>
+  </mx:Script>
+  	
+	<mx:HDividedBox horizontalGap="2" width="100%" height="100%">
+		<mx:VBox width="24%" height="100%" backgroundColor="white">
+			<mx:Text text="点击相应的类型以查询部门人员"/>
+			<mx:Tree id="tree" defaultLeafIcon="undefined" width="100%" fontSize="12" height="100%" labelField="@name" doubleClickEnabled="true" borderThickness="0" visible="false" initialize="initTree();" /> 
+		</mx:VBox>
+		
+		<mx:VBox id="exClassfiedByExpertType" width="76%" height="100%" backgroundColor="white" creationPolicy="all">
+			
+			<mx:ViewStack id="exVS" width="100%" height="100%" creationPolicy="all">
+				<mx:VBox label="部门人员列表" width="100%" height="100%">
+					<mx:DataGrid width="99%" height="100%" dataProvider="{deptPeopleInfosArrc}" fontSize="12">
+						<mx:columns>
+							<mx:DataGridColumn dataField="NAME_C" headerText="姓名"/>
+							<mx:DataGridColumn dataField="POST_NAME" headerText="职位"/>
+							<mx:DataGridColumn headerText="联系电话">
+								<mx:itemRenderer>
+								<mx:Component>
+									<MobileNum:voiceTransfer  phoneNum="{data.CONTACTOR_TEL}" markFrom = "联系电话"/>
+								</mx:Component>
+								</mx:itemRenderer> 
+							</mx:DataGridColumn>
+							<mx:DataGridColumn headerText="手机" textAlign="left">
+								<mx:itemRenderer>
+									<mx:Component>
+										<MobileNum:voiceTransfer  phoneNum="{data.CONTACTOR_MOBILE}" markFrom="联系手机"/>
+									</mx:Component>
+								</mx:itemRenderer> 
+							</mx:DataGridColumn>
+							<mx:DataGridColumn dataField="E_MAIL" headerText="邮箱"/>
+							<mx:DataGridColumn dataField="FAX_NUMBER" headerText="传真"/>
+							
+						</mx:columns>
+					</mx:DataGrid>
+				</mx:VBox>
+			</mx:ViewStack>
+		</mx:VBox>
+	</mx:HDividedBox>
+	
+	
+</mx:Canvas>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE sqlMap      
+    PUBLIC "-//ibatis.apache.org//DTD SQL Map 2.0//EN"      
+    "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+<sqlMap>
+
+	<select id="getMenus" resultClass="HashMap" resultSetType="SCROLL_INSENSITIVE">
+		     select m_key,level,name,sub_key,m_order,url,open_id,create_date,modify_date from menu
+	</select>
+	
+</sqlMap>

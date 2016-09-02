@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute">
+ <mx:Panel title="柱状图实例" y="36" width="408" height="423" layout="absolute" fontSize="14" fontFamily="Georgia" color="#3D52EA" horizontalCenter="11">
+  <mx:ColumnChart y="24" id="myChart" dataProvider="{finance}" width="346" height="348" type="clustered" showDataTips="true" fontFamily="Georgia" fontSize="11" horizontalCenter="-1">
+   <mx:horizontalAxis>
+    <mx:CategoryAxis
+     dataProvider="{finance}"
+     categoryField="Month"
+     title="(月份)"
+     />
+   </mx:horizontalAxis>
+   <mx:series>
+    <mx:ColumnSeries displayName="收入" xField="Month" yField="In"/>
+   <mx:ColumnSeries displayName="支出" xField="Month" yField="Out"/>
+   </mx:series>
+  </mx:ColumnChart>
+  <mx:Legend dataProvider="{finance}" y="10" x="294"/>
+ </mx:Panel>
+ <mx:Script><![CDATA[
+      import mx.collections.ArrayCollection;   //引用数组类
+      [Bindable]  
+      //定义数据集，数据集的内容为每月的收支情况       
+      public var finance:ArrayCollection = new ArrayCollection([
+         {Month:"一月", In:2000, Out:1500},
+         {Month:"二月", In:1000, Out:200},
+         {Month:"三月", In:1500, Out:200},
+         {Month:"四月", In:3500, Out:1000},
+         {Month:"五月", In:500, Out:800},
+         {Month:"六月", In:4500, Out:600},
+         {Month:"七月", In:2500, Out:500},
+         {Month:"八月", In:1570, Out:300},
+         {Month:"九月", In:1000, Out:450},
+         {Month:"十月", In:1500, Out:400},
+         {Month:"十一月", In:1700, Out:2500},
+         {Month:"十二月", In:1800, Out:1500},
+      ]);
+   ]]></mx:Script>
+ 
+</mx:Application>

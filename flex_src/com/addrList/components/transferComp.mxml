@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>    
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:comp="components.*"
+			 titleIcon="{dialstartImg}"	title="{'转接到→'+NAME_C}" showCloseButton="true" close="close(event)" color="#000000">
+
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Image;       
+			import mx.managers.PopUpManager;
+			import mx.core.IFlexDisplayObject;
+			import mx.controls.Alert;
+			import mx.collections.ArrayCollection;
+
+			public var win:IFlexDisplayObject=null;       
+			public var imgDialOut:Image;
+			public var imgCutOff:Image;
+
+			[Bindable]
+			private var _addr:XML=null;
+			[Bindable]
+			private var imgcall2:String = "assets/images/call-3.png";
+			[Bindable]
+			private var imgcut1:String = "assets/images/cut-1.png";
+			[Bindable]
+			[Embed(source='com/addrList/assets/icons/transfer.png')]
+			private var dialstartImg:Class;
+			private  var transDailing:String="9";			//转接外拨中transDailing
+			private var talking:String="4";				//通话中talking
+			private var busyTone:String="13";				//催挂音busyTone
+			[Bindable]
+			public var phoneNum:String="";
+			[Bindable]
+			public var NAME_C:String="";
+			[Bindable]
+			public var markFrom:String="";
+
+//			public function get addrXML():XML{
+//				return _addr;
+//			}
+//
+//			public function set addrXML(value:XML):void{
+//				_addr=value;
+//			} 		
+
+			//关闭窗口
+			private function close(event:*):void{
+				PopUpManager.removePopUp(this);
+			}   
+		
+			//打开通讯录
+//			private function openAddrWin():void{
+//				PopUpManager.removePopUp(win);
+//				win=PopUpManager.createPopUp( this, AddressPopUp,false);
+//				PopUpManager.centerPopUp(win);
+//				var transferAddrWin:AddressPopUp = AddressPopUp(win);             
+//				transferAddrWin.xmlAddress = _addr;
+//				transferAddrWin.uName = phoneNo;
+//			}
+
+			//转接
+			private function transferPhone(phone:String):void{
+				if(Trim(phoneNo.text) == ''){
+					Alert.show("请输入需要转接的号码！");
+				}
+				else if(this.parentApplication.getVoiceCallStatus()==talking){
+//					Alert.show("Trim(phoneNo.text):"+(phoneNo.text).split(" ").join("")+"phoneNo.text:"+phoneNo.text)
+//					Alert.show("component value: "+this.parentDocument.callStat);
+					phoneNo.text = phone;
+					ExternalInterface.call("transfer",phoneNo.text);
+					transferInfo.text = "已拨打" + phoneNo.text + "!";
+					tranfer.enabled = false;
+					tranferCom.enabled = true;
+					rtnDail.enabled = true;
+				}
+			}
+
+			//转接完成
+			private function transferComplete(event:*):void{
+				if(this.parentApplication.getVoiceCallStatus()==transDailing){
+//					Alert.show("component value: "+this.parentDocument.callStat);
+					ExternalInterface.call("transferComplete");
+					close(event);
+				}
+				
+//				imgDialOut.source = imgcall2;    
+//				imgCutOff.source = imgcut1;
+			}
+			
+
+			//恢复上一个通话
+			private function returnTransfer():void{
+				var vcs:String = this.parentApplication.getVoiceCallStatus();
+				if(vcs==transDailing || (vcs==busyTone && this.parentApplication.getRetriveAllowSts()=='Y')){
+//					Alert.show("component value: "+this.parentDocument.callStat);
+					ExternalInterface.call("transferBack");
+					tranfer.enabled = true;
+					tranferCom.enabled = false;
+					rtnDail.enabled = false;
+				}
+			}
+			/********去掉字符串的空格*********/
+			
+			public function Trim(s:String):String  
+			{  
+			  return LTrim(RTrim(s)); 
+			}
+			public function LTrim(s:String):String  
+			{  
+			  var i : Number = 0; 
+			  while(s.charCodeAt(i) == 32 || s.charCodeAt(i) == 13 || s.charCodeAt(i) == 10 || s.charCodeAt(i) == 9)  
+			  {  
+			    i++; 
+			  }  
+			  return s.substring(i,s.length); 
+			}
+			public function RTrim(s : String):String  
+			{  
+			  var i : Number = s.length - 1; 
+			  while(s.charCodeAt(i) == 32 || s.charCodeAt(i) == 13 || s.charCodeAt(i) == 10 ||s.charCodeAt(i) == 9)  
+			  {  
+			    i--; 
+			  }  
+			  return s.substring(0,i+1); 
+			} 
+
+		]]>
+	</mx:Script>
+	<mx:VBox horizontalAlign="center" verticalAlign="middle" paddingTop="10" paddingBottom="10" paddingLeft="10" paddingRight="10">
+		<mx:HBox horizontalGap="0">
+			<mx:Text text="{markFrom+'：'}" width="80" height="25"/>
+			<mx:TextInput id="phoneNo" text="{phoneNum}" maxChars="20" restrict="0-9"/>
+			<!--<mx:Button label="选择联系人" click="openAddrWin()" styleName="ButtonStyle" height="20"/>-->
+		</mx:HBox>
+		<mx:Spacer/>
+		<mx:Label id="transferInfo" text="" color="#ff0000"/>
+		<mx:HBox>
+			<mx:Button label="转接" id="tranfer" styleName="ButtonStyle" height="20" click="transferPhone(phoneNo.text)"/>
+			<mx:Button label="完成转接" id="tranferCom" styleName="ButtonStyle" height="20" click="transferComplete(event)" enabled="false"/>
+			<mx:Button label="恢复" id="rtnDail" styleName="ButtonStyle" height="20" click="returnTransfer()" enabled="false"/>
+			<mx:Button label="关闭"  click="close(event)" styleName="ButtonStyle" height="20"/>
+		</mx:HBox>
+	</mx:VBox>
+</mx:TitleWindow>  

@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" horizontalScrollPolicy="off" verticalScrollPolicy="off" layout="absolute" width="430" height="380"
+	showCloseButton="true" title="{'电话会议人员列表'+'('+voiceArrc.length+')'}" fontSize="12" close="PopUpManager.removePopUp(this)" creationComplete="init();" borderColor="#574869">
+	<mx:Script>
+		<![CDATA[
+			import mx.utils.ObjectUtil;
+			import mx.controls.Alert;
+			import mx.collections.ArrayCollection;
+			import com.esri.solutions.flexviewer.SiteContainer;
+			import mx.managers.PopUpManager;
+			[Bindable]
+			public var confID:String="";
+			[Bindable]
+			public var voiceArrc:ArrayCollection=new ArrayCollection;
+			[Bindable]
+			public var joinArrc:ArrayCollection=new ArrayCollection;
+			[Bindable]
+			public var unJoinArrc:ArrayCollection=new ArrayCollection;
+			[Bindable]
+			public var topicArrC:ArrayCollection=new ArrayCollection([{topic:"  ----请选择----"}]);
+			private function init():void{
+				ExternalInterface.addCallback("allVoiceMeetings",allVoiceMeetingHandler);
+				ExternalInterface.addCallback("vmCondition",vmConditionHandler);
+				SiteContainer.addEventListener(CommonEvent.VOICE_NUMS,voiceNumsHandler);
+				/////////Alice
+				SiteContainer.addEventListener(CommonEvent.VOICE_TOPIC_REGISTERED,popUpVoiceMeetingHandler); 
+			}
+			public function allVoiceMeetingHandler(vmObj:Object,maxNum:int):void{
+				topicArrC=new ArrayCollection([{topic:"  ----请选择----"}]);//add by alice
+				for(var i:int=0;i<maxNum;i++){
+					if(vmObj[i].confID!=undefined && vmObj[i]!=null){
+						topicArrC.addItem(vmObj[i]);
+					}
+				}
+			}
+			public function vmConditionHandler(itemJoin:Object,maxNumJoin:int,itemUnJoin:Object,maxNumUnJoin:int,conID:int):void{
+				for(var i:int=0;i<maxNumJoin;i++){
+					if(itemJoin[i]!=null){
+						joinArrc.addItem(itemJoin[i]);
+						Alert.show("joinArrc"+itemJoin[i]);
+					}
+				}
+				for(var j:int=0;j<maxNumUnJoin;j++){
+					if(itemUnJoin[i]!=null){
+						unJoinArrc.addItem(itemUnJoin[i]);
+						Alert.show("unJoinArrc"+itemUnJoin[j]);
+					}
+				}				
+			}
+			public function voiceNumsHandler(event:CommonEvent):void{
+				voiceArrc = event.data as ArrayCollection;
+				voiceArrc.refresh();
+			}
+			private function joinVoiceMeetingHandler():void{
+				var numArrc:Array = new Array;
+				var statusArrc:Array = new Array;
+				for each(var obj:Object in voiceArrc){
+					if(obj.CONTACTOR_MOBILE!=null){
+						numArrc.push(obj.CONTACTOR_MOBILE);	
+					}
+					else{
+						numArrc.push(obj.CONTACTOR_TEL);	
+					}
+					statusArrc.push(0)
+				}
+				confID = meetings.selectedItem.confID;
+//				Alert.show( meetings.selectedItem.confID+"Topicc:"+meetings.selectedItem.topic);
+				var joinStatus:Boolean = ExternalInterface.call("onjoinConf",  meetings.selectedItem.confID,meetings.selectedItem.topic,numArrc,statusArrc);
+				if(joinStatus){
+					Alert.show("成功了");
+				}
+				else{
+					Alert.show("失败了");
+				}
+			}
+		private function createMeetingTopic():void
+		{
+			var event:CommonEvent=new CommonEvent("");
+			popUpVoiceMeetingHandler(event);
+		}
+		public function popUpVoiceMeetingHandler(evt:CommonEvent):void{
+		var voiceTopicWin:voiceMeetingTopic = new voiceMeetingTopic();
+		voiceTopicWin.x=this.parentApplication.width/3;
+		voiceTopicWin.y=this.parentApplication.height/5;
+		PopUpManager.addPopUp(voiceTopicWin, this, true);
+		}
+		]]>
+	</mx:Script>
+	<!--<mx:VBox width="100%" height="100%">
+	<mx:HBox width="90%" horizontalAlign="right">
+	<mx:Button label="邀请" click="joinVoiceMeetingHandler();" enabled="{voiceArrc.length>0}"/>
+	<mx:Button label="取消" click="PopUpManager.removePopUp(this);"/>
+	</mx:HBox>
+	<mx:DataGrid dataProvider="{voiceArrc}" fontSize="12" width="100%" height="100%" horizontalScrollPolicy="off">
+		<mx:columns>
+			<mx:DataGridColumn dataField="NAME_C" headerText="姓名" showDataTips="true"/>
+			<mx:DataGridColumn dataField="CONTACTOR_MOBILE" headerText="手机" showDataTips="true"/>
+			<mx:DataGridColumn dataField="CONTACTOR_TEL" headerText="电话" showDataTips="true"/>
+		</mx:columns>
+	</mx:DataGrid>
+	</mx:VBox>-->
+	<mx:TabNavigator id="tabNavId"
+						 width="401"
+						 height="288"
+						 creationPolicy="all" x="4" y="33">
+						 
+	<mx:VBox height="100%" width="100%" label="邀请列表">
+		<mx:HBox width="90%" horizontalAlign="left">
+		<mx:Button label="邀请" click="joinVoiceMeetingHandler();" enabled="{voiceArrc.length>0}"/>
+		<mx:Button label="取消" click="PopUpManager.removePopUp(this);"/>
+		</mx:HBox>
+	<mx:DataGrid dataProvider="{voiceArrc}" fontSize="12" width="100%" height="100%" horizontalScrollPolicy="off">
+		<mx:columns>
+			<mx:DataGridColumn dataField="NAME_C" headerText="姓名" showDataTips="true"/>
+			<mx:DataGridColumn dataField="CONTACTOR_MOBILE" headerText="手机" showDataTips="true"/>
+			<mx:DataGridColumn dataField="CONTACTOR_TEL" headerText="电话" showDataTips="true"/>
+		</mx:columns>
+	</mx:DataGrid>
+	</mx:VBox>
+	<mx:VBox height="100%" width="100%" label="成功加入会议人员列表" horizontalScrollPolicy="off" verticalScrollPolicy="off">
+		<mx:Text text="正在会议人员:" width="92" height="22" fontFamily="Times New Roman" fontWeight="bold" color="#190C64"/>
+		<mx:DataGrid width="400" height="108">
+			<mx:columns>
+				<mx:DataGridColumn dataField="NAME_C" headerText="姓名" showDataTips="true"/>
+				<mx:DataGridColumn dataField="CONTACTOR_MOBILE" headerText="手机" showDataTips="true"/>
+				<mx:DataGridColumn dataField="CONTACTOR_TEL" headerText="电话" showDataTips="true"/>
+			</mx:columns>
+		</mx:DataGrid>
+		<mx:Text text="离开会议人员:" width="95" fontWeight="bold" color="#A5214C"/>
+		<mx:DataGrid width="399" height="108">
+			<mx:columns>
+			<mx:DataGridColumn dataField="NAME_C" headerText="姓名" showDataTips="true"/>
+			<mx:DataGridColumn dataField="CONTACTOR_MOBILE" headerText="手机" showDataTips="true"/>
+			<mx:DataGridColumn dataField="CONTACTOR_TEL" headerText="电话" showDataTips="true"/>
+			</mx:columns>
+		</mx:DataGrid>
+	</mx:VBox>
+	<mx:VBox height="100%" width="100%" label="没有加入会议人员列表">
+		<mx:Button label="重新邀请"/>
+		<mx:DataGrid height="100%" width="100%" horizontalScrollPolicy="off" verticalScrollPolicy="off">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Column 1" dataField="col1"/>
+				<mx:DataGridColumn headerText="Column 2" dataField="col2"/>
+				<mx:DataGridColumn headerText="Column 3" dataField="col3"/>
+			</mx:columns>
+		</mx:DataGrid>
+	</mx:VBox>				 
+	</mx:TabNavigator>
+	<mx:ComboBox id="meetings" width="118" text="  ----请选择----" dataProvider="{topicArrC}" labelField="topic" x="89" y="0"></mx:ComboBox>
+	<mx:Label x="10" y="3" text="选择会议：" width="71"/>
+	<mx:Button x="230" y="1" label="创建会议" click="createMeetingTopic()" width="80" cornerRadius="5"/>
+
+</mx:TitleWindow>

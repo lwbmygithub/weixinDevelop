@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel title="{realm + '事件统计图表'}" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns="*" creationComplete="init()" width="600" height="500" fontSize="12">
+	<!--各字段的单位不同，没有可比性，故此窗口不用。选择区域单行时可饼状图和柱状图展示该区事故各种损失和所占比例-->
+	<mx:Metadata>
+	[Event(name="chartItemClick",type="flash.events.Event")]
+	</mx:Metadata>
+
+	<mx:RemoteObject id="dictRO" destination="emergencyEventFlexCountRO" fault="faultHandler(event)">
+		<mx:method name="findEventLossType" result="findEventLossTypeHandler(event)"/>
+	</mx:RemoteObject>
+	<mx:states>
+        <mx:State name="printView">
+            <mx:AddChild position="lastChild">
+                <mx:Panel width="388" height="303" layout="absolute">
+                    <mx:Image id="img" x="10" y="10"/>
+                </mx:Panel>
+            </mx:AddChild>
+            <mx:AddChild position="lastChild">
+                <mx:Button label="Back" click="currentState=&quot;&quot;"/>
+            </mx:AddChild>
+        </mx:State>
+    </mx:states> 
+	<mx:Script>
+		<![CDATA[
+			import com.reports.emergencyEventReports.components.LegendFontStyle;
+			import mx.graphics.codec.JPEGEncoder;
+			import mx.core.IUIComponent;
+			import mx.controls.Text;
+			import mx.graphics.ImageSnapshot;
+			import mx.printing.FlexPrintJobScaleType;
+			import mx.printing.FlexPrintJob;
+			import mx.core.Application;
+			import mx.utils.URLUtil;
+			import mx.charts.events.ChartItemEvent;
+			import com.esri.solutions.gmapviewer.utils.Hashtable;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.controls.Alert;
+			import mx.charts.series.ColumnSeries;
+			import mx.charts.CategoryAxis;
+			import mx.rpc.events.ResultEvent;
+			import mx.collections.ArrayCollection;
+			
+			[Bindable]
+			public var lossTypeArrc:ArrayCollection;
+			[Bindable]
+			public var eventData:ArrayCollection;
+			[Bindable]
+			public var realm:String;
+			[Bindable]
+			public var pieArr:ArrayCollection;
+			[Bindable]
+			public var listData:ArrayCollection= new ArrayCollection;
+			
+			private const jpegEnc:JPEGEncoder = new JPEGEncoder(100);
+			
+			private var fileReference:FileReference = new FileReference();
+
+			
+			private function init():void{
+				dictRO.findEventLossType();
+			}
+			private function findEventLossTypeHandler(eve:ResultEvent):void{
+				lossTypeArrc=eve.result as ArrayCollection;
+				var obj:Object = eventData.getItemAt(0) as Object;
+				realm = obj.REALM;
+				initBarChart();
+				initPie();
+			}
+			//柱状图
+			private function initBarChart():void{
+				var horAxisP:CategoryAxis = new CategoryAxis();
+        		horAxisP.categoryField = "REALM";
+        		colChartID.horizontalAxis = horAxisP;
+        		var arrayFiel:Array = new Array();
+        		var len:int = lossTypeArrc.length;
+        		for(var i:Number = 0; i < len; i++){
+        			var yFielName:String = lossTypeArrc[i].CODE;
+        			var columnSer:ColumnSeries = new ColumnSeries;
+		        	columnSer.xField = "REALM";
+		        	columnSer.yField = yFielName;
+	        		columnSer.displayName = lossTypeArrc[i].NAME;		
+	        		arrayFiel[i] = columnSer;
+		        	trace(arrayFiel);
+        		}
+		        colChartID.series=arrayFiel;
+
+			}
+			private function initPie():void
+			{
+				pieArr = new ArrayCollection();
+				var obj:Object = eventData.getItemAt(0) as Object;
+				var len:int = lossTypeArrc.length;
+        		for(var i:Number = 0; i < len; i++){
+        			var pieObj:Object = new Object;
+        			pieObj.typeName = lossTypeArrc[i].NAME;
+        			pieObj.countNum = obj[lossTypeArrc[i].CODE];
+        			pieArr.addItem(pieObj);
+        		}
+        		pieArr.refresh();
+			}
+			private function faultHandler(event:FaultEvent):void{
+	      		Alert.show(event.fault.faultString);
+	      	}
+	      	internal function doBack():void {
+            PopUpManager.removePopUp(this);    
+            }
+            private function displayGold(data:Object, field:String, index:Number, percentValue:Number):String {
+            	if(data.countNum!=0){
+	            var temp:String= (" " + percentValue).substr(0,6);
+	            var obj:Object = new Object();
+	            obj.typeName = data.typeName;
+	            obj.countNum = data.countNum;
+	            obj.percent = temp+'%';
+	            if(!isContain(listData,obj))
+	            {
+	            listData.addItem(obj);
+	            }
+	            return data.typeName + ": " + '\n' + "Total: " + data.countNum + '\n' + temp + "%";
+	            }
+	            return "";
+	            
+       		 }
+       		private function isContain(listData:ArrayCollection,obj:Object):Boolean
+       		{
+       			for each (var item:Object in listData)
+       			{
+       				if(item.typeName == obj.typeName)
+       				{
+       					return true;
+       				}
+       			}
+       			return false;
+       		}
+			private function clickColumnChart(event:ChartItemEvent):void
+			{
+//				var objType:Object = event.hitData.element as Object;
+//	      		var eventType:String = objType.yField;
+//	      		var objRealm:Object = event.hitData.chartItem as Object;
+//	      		var realm:String = objRealm.xValue;
+//	      		var eventWin:EventsDetailPopWin = new EventsDetailPopWin();
+//		      	eventWin.x = 0;
+//		      	eventWin.y = 0;
+//		      	eventWin.eventType = eventType;
+//		      	eventWin.realm = realm;
+//		      	PopUpManager.addPopUp(eventWin,parentApplication.panelID, false);
+//		        PopUpManager.centerPopUp(eventWin);
+			}
+			private function test():void
+			{
+				var printJob:FlexPrintJob = new FlexPrintJob();
+				if (printJob.start())
+                {
+				var h:Number = printJob.pageHeight;
+            	var w:Number = printJob.pageWidth;
+            	//VBOX
+            	var printBox:VBox = new VBox();
+            	printBox.styleName = "PrintBox";
+            	printBox.width = chart.width;
+            	printBox.horizontalScrollPolicy = "off";
+            	printBox.verticalScrollPolicy = "off";
+            	try
+                    {
+	            	var bmpChart:BitmapData = ImageSnapshot.captureBitmapData(chart);
+	                var bmpC:Bitmap = new Bitmap(bmpChart);  
+	                var printImg1:Image = new Image();   
+	                printImg1.source = bmpC;
+	                
+					var bmpMap:BitmapData = ImageSnapshot.captureBitmapData(pieChartLegend);
+	                var bmp:Bitmap = new Bitmap(bmpMap);  
+	                var printImg:Image = new Image();   
+	                printImg.source = bmp;
+	                
+	                printBox.addChild(printImg1); 
+	                printBox.addChild(printImg); 
+	                
+	                //COPYRIGHT
+	            	var now:Date = new Date();
+	            	var printCopy:Text = new Text();
+	            	printCopy.text =  "  打印时间：" + now.getFullYear() + "年 " + (now.getMonth()+1) + "月 " + now.getDate() + "日 " + now.toTimeString().substring(0,8);
+	            	printCopy.styleName = "PrintCopyright";
+	            	printCopy.setStyle("fontSize", h/48);
+	            	printCopy.percentWidth = 100;
+	            	printBox.addChild(printCopy);
+	                //PRINT
+	                this.addChild(printBox);
+	                printJob.addObject(printBox, FlexPrintJobScaleType.SHOW_ALL);
+	            	printJob.printAsBitmap;
+	            	this.removeChild(printBox);
+	            	}
+                    catch (e:Error)
+                    {
+                    	this.removeChild(printBox);
+                        Alert.show( e.toString() );
+                    }
+                    printJob.send();
+                }
+			}
+			private function toPrint():void{
+				if(toggle.selectedIndex==0)
+				{
+					this.parentApplication.doPrint(barChart);
+				}
+				else if(toggle.selectedIndex==1)
+				{
+					this.parentApplication.doPrint(chartBox);
+				}
+				else if(toggle.selectedIndex==2)
+				{
+					this.parentApplication.doPrint(danymDataGrid);
+				}
+			}
+			 private function takeSnapShot():void
+            {
+            	var imageSnap:ImageSnapshot = ImageSnapshot.captureImage(barChart, 0, jpegEnc , false);
+            	fileReference.save(imageSnap.data, "snapShot.jpg");
+            }
+		]]>
+	</mx:Script>
+	<mx:ViewStack id="vs" width="100%" height="100%" creationPolicy="all" >
+	   <mx:VBox id="barChart" icon="@Embed('icon_chart.png')" width="100%" height="90%" toolTip="柱状图" backgroundColor="0xffffff">
+			<mx:ColumnChart id="colChartID" dataProvider="{eventData}" width="98%" showDataTips="true" height="98%" styleName="ChineseFont" showAllDataTips="true"/><!--itemClick="clickColumnChart(event)"-->
+			<mx:Legend dataProvider="{colChartID}" width="98%" direction="horizontal" enabled="true" legendItemClass="{com.reports.emergencyEventReports.components.LegendFontStyle}"/> 
+		</mx:VBox>
+	   <mx:VBox id="chartBox" width="100%" height="100%" icon="@Embed('icon_chart.png')" toolTip="圆饼图" hideEffect="Fade" showEffect="Fade">
+				<mx:PieChart id="chart" 
+	            height="100%" 
+	            width="100%"
+	            paddingRight="5" 
+	            paddingLeft="5" 
+	            showDataTips="true" 
+	            dataProvider="{pieArr}"
+	        	> 
+	            <mx:series>
+	                <mx:PieSeries  labelPosition="callout"
+	                    nameField="typeName"
+	                    field="countNum" 
+	                    labelFunction="displayGold" styleName="ChineseFont"
+	                >
+	                    <mx:filters>
+	                        <mx:Array/>
+	                    </mx:filters> 
+	                </mx:PieSeries>
+	            </mx:series>
+	        </mx:PieChart>  
+	        <mx:Legend id="pieChartLegend" dataProvider="{chart}" direction="horizontal" width="98%" enabled="true" legendItemClass="{com.reports.emergencyEventReports.components.LegendFontStyle}"/>
+	   </mx:VBox> 
+	   <mx:VBox id="danymDataGrid" icon="@Embed('icon_grid.png')" width="100%" height="90%" toolTip="查看列表">
+		<mx:DataGrid id="eventCountId" width="100%" height="100%" dataProvider="{listData}">
+			<mx:columns>
+                <mx:DataGridColumn dataField="typeName" headerText="类型名称"/>
+                <mx:DataGridColumn dataField="countNum" headerText="数量"/>
+                <mx:DataGridColumn dataField="percent" headerText="百分比"/>
+            </mx:columns>
+		</mx:DataGrid>
+	   </mx:VBox>
+	</mx:ViewStack>
+	<mx:ControlBar horizontalGap="15">
+    <mx:ToggleButtonBar dataProvider="{vs}" id="toggle"/>
+    <mx:Button label="打印" click="toPrint()"/>
+    <mx:Button visible="{toggle.selectedIndex==2}" label="导出EXCEL" click="this.parentApplication.loadExcel(eventCountId);"/>
+	</mx:ControlBar>
+	<mx:ControlBar horizontalAlign="center">
+    	<mx:Button label="Close" x="160" y="128" click="doBack();"/>
+    </mx:ControlBar>
+</mx:Panel>

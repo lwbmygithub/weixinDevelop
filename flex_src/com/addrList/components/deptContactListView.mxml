@@ -1,0 +1,1164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%"
+	  xmlns:MobileNum="com.addrList.components.*"
+	  xmlns:local="*" creationComplete="init()" xmlns:deptCbx="com.addrList.checkBox.*" fontSize="12"
+	  xmlns:m="com.sunwah.designLayout.managers.*">
+	<!--<m:PeopleClassifyByDeptManager id="pcbdm"/>-->
+	<m:PeopleClassifyByDeptIDManager id="pcbdm"/><!--使用带域控制的部门人员查找方式-->
+	<m:PeopleClassifyByRealmManager id="pcbrm"/><!--根据区域ID查找值班人员-->
+	<m:OndutyPhoneClassifyByRealmManager id="opcf"/><!--根据区域查找部门值班电话-->
+	<m:OndutyPhoneClassifyByDeptManager id="opdm"/><!--根据部门查找部门值班电话-->
+	<m:DeptFuncManager id="dfm" deptFuncLoaded="deptFuncLoadedHandler(event)"/>
+	<m:RealmTreeManager id="rm" realmLoaded="realmLoadedHandler(event)"/>
+	<mx:Script source="utils.as"/>
+	<mx:Script>
+    <![CDATA[
+    	import mx.events.CloseEvent;
+    	import mx.utils.StringUtil;
+    	import mx.events.IndexChangedEvent;
+	    import com.esri.solutions.flexviewer.components.checkBox.expertCheckBox.ExpertAddrListMsgCbxEvent;
+	    import mx.collections.HierarchicalData;
+	    import mx.collections.XMLListCollection;
+	    import com.esri.solutions.flexviewer.AppEvent;
+	    import com.sunwah.components.checkTree.TreeCheckBoxEvent;
+	    import com.sunwah.designLayout.valueObjects.SelectedResCat;
+	    import mx.core.Application;
+	    import mx.containers.VBox;    	
+	    import com.addrList.checkBox.deptCheckBox;
+	    import com.addrList.checkBox.DeptEvents;
+	    import mx.controls.Label;
+	    import mx.managers.PopUpManager;    	
+	    import mx.events.ListEvent;
+	    import mx.collections.ArrayCollection;    	
+	    import mx.rpc.events.ResultEvent;
+	    import mx.rpc.events.FaultEvent;    	
+	    import mx.controls.Alert;    	
+	    import com.addrList.expertAddrList.exDetailPopUpWins;
+	    import flash.external.ExternalInterface;
+	    import mx.events.ItemClickEvent;
+	    import mx.utils.URLUtil;
+	    import com.esri.solutions.flexviewer.SiteContainer;
+	     	
+	    [Bindable]
+		public var realmMsgXMLList:XMLList=new XMLList();
+	      
+	    [Bindable]
+		public var dpMsgArrc:ArrayCollection = new ArrayCollection();
+		[Bindable]
+		private var realmAdgdata:XMLListCollection = new XMLListCollection();            //应急联络人短信列表
+		[Bindable] 
+		private var dutyNumAdgdata:XMLListCollection = new XMLListCollection();           //值守通讯录短信列表
+		[Bindable]
+		public var dutyDeptMsgXMLList:XMLList=new XMLList();
+	    
+	    private var port:int;
+	    private var serverName:String;
+	    [Bindable]
+	    private var serverUrl:String;
+	    [Bindable]
+	    private var deptPeopleXmlList:XMLList;
+	    [Bindable]
+	    private var onduyNumberXmlList:XMLList;
+	    
+	    [Bindable]
+		private var adgdataRealm:XMLListCollection;//存放按区域分类应急人员通讯录的数据
+		[Bindable]
+		private var adgdataDeptFunc:XMLListCollection;//存放按职能分类应急人员通讯录的数据
+		[Bindable]
+		private var deptDataDuty:XMLListCollection;//存放按区域分类应急值守通讯录的数据
+		[Bindable]
+		private var deptDataDutyFunc:XMLListCollection;//存放按职能分类应急值守通讯录的数据
+		private var isFilterData:Boolean=false;//应急人员（按区域）判断数据是否是过滤后的数据
+		private var isFilterDataFunc:Boolean=false;//应急人员（按职能）判断数据是否是过滤后的数据
+		private var isDutyFilterData:Boolean=false;//应急值守（按区域）判断数据是否是过滤后的数据
+		private var isDutyFilterDataFunc:Boolean=false;//应急值守（按职能）判断数据是否是过滤后的数据
+		private var classsifyMark:String='realm';//按区域分类“realm”，按职能分类“deptFunc”
+      
+	    private function init():void
+	    {
+	      this.addEventListener(TreeCheckBoxEvent.CHECKBOX_CLICK, treeCheckBoxHandler);
+	      SiteContainer.addEventListener(AppEvent.ADLI_DEPT_BY_REALM_CHKB,deptByRealmCbxHandler);
+	      getFullUrladd();
+	     }
+      
+	      //读取区域树
+	    private function realmLoadedHandler(event:Event):void
+		{
+			var realmId:String = ExternalInterface.call("toGetRealmId");
+			if(realmId==null)
+			{
+				realmId = "101";
+			}
+			var treeXmlCol:XML =rm.getRealmTreeXMLListColl();
+			checkTree.dataProvider = treeXmlCol;
+			var realmObj:Object={realm_id:realmId, state:"checked"};
+			realmSelectHandler(realmObj);//默认选择当前区域
+//			var node:XML;
+//			for each(var item:XML in treeXmlCol..node)
+//			{
+//				if(item.@code == realmId)
+//				{
+//					checkTree.openItems = item;
+//					node = item;
+//					break;
+//				}
+//			}
+			checkTree.openItems = treeXmlCol..node;//默认打开全部节点
+
+//			checkTree.expandItem(node,true);
+//            expandParents(node);
+//            checkTree.selectedItem = node;
+//            var idx:int = checkTree.getItemIndex(node);
+//            checkTree.scrollToIndex(idx);
+		}
+		private function expandParents(node:XML):void {
+            if (node && !checkTree.isItemOpen(node)) {
+                checkTree.expandItem(node, true);
+                expandParents(node.parent());
+            }
+        }
+
+		 //读取职能
+		private function deptFuncLoadedHandler(event:Event):void
+		{
+			lstDeptFunc.dataProvider=dfm.getDeptFuncObjectArray();
+		}
+	
+		private function lstDeptFuncChangeHandler(event:ListEvent):void
+		{
+			var dataObj:Object=event.itemRenderer.data as Object;
+			var obj:Object={dept_func_id:dataObj.code};
+			deptSelectHandler(obj);
+		}
+    
+  		//树的勾选
+	    private function treeCheckBoxHandler(event:TreeCheckBoxEvent):void
+		{
+			if (viewStack.selectedIndex == 0)
+			{
+				var realmXml:XML=event.data as XML;
+				var realmObj:Object={realm_id:realmXml.@code, state:realmXml.@state};
+				realmSelectHandler(realmObj);
+			}
+		}
+	    //对应区域的安监人员的查询
+	    private function realmSelectHandler(obj:Object):void
+		{
+			classsifyMark ='realm';
+//			var adgdataRealm:XMLListCollection;
+			adgdataRealm = new XMLListCollection();
+			deptDataDuty = new XMLListCollection();
+//			var deptData:XMLListCollection;
+			var seletedRealm:Object=obj;
+			var realm_id:String=seletedRealm.realm_id;
+			var state:String=seletedRealm.state;
+			if (state == "checked")
+			{
+				var xmlList:XMLList=pcbrm.getPeopleByRealm(realm_id);
+				var ondutyXmlList:XMLList=opcf.getDeptByRealm(realm_id);     //值守手机或者值守电话簿为空的部门
+				deptPeopleXmlList=xmlList;
+				onduyNumberXmlList=ondutyXmlList;
+				if (xmlList.length() > 0)
+				{
+					for each(var itemXml:XML in xmlList..people)
+						{
+							itemXml.@checkbox="true";
+						}
+					for each(var itemXml1:XML in ondutyXmlList..dept)
+						{
+							itemXml1.@checkbox="true";
+						}	
+						adgdataRealm=new XMLListCollection(xmlList);
+						deptDataDuty=new XMLListCollection(ondutyXmlList);
+						deptContactGrid.dataProvider=new HierarchicalData(adgdataRealm);
+						if(xmlListColl != null && xmlList..people.length()>0){//用于过滤
+							xmlListColl.source = xmlList..people;
+							xmlListColl.refresh();
+							if(StringUtil.trim(search.text).length>0){
+								searchInfos();
+							} 
+						}   
+						if(deptDataDuty.length==0)
+						{
+							ondutyGrid.dataProvider=null;
+						}else
+						{
+							ondutyGrid.dataProvider=new HierarchicalData(deptDataDuty);
+							if(xmlListDutyColl != null && ondutyXmlList.length()>0){//用于过滤
+								xmlListDutyColl.source = ondutyXmlList;
+								xmlListDutyColl.refresh();
+							}  
+							if(StringUtil.trim(searchDuty.text).length>0 && xmlListDutyColl !=null && ondutyXmlList.length()>0)//有过滤条件时进行过滤
+							{
+								searchDutyHandler();
+							}
+						}
+				}
+				else
+				{
+					deptContactGrid.dataProvider=null;
+				}
+					realmMsgXMLList = xmlList;
+			}
+			else if (state == "unchecked")
+			{
+				deptContactGrid.dataProvider=null;
+			}
+		}
+
+    //对应职能的案件人员查询
+   		 private function deptSelectHandler(obj:Object):void
+			{
+				classsifyMark ='deptFunc';
+				adgdataDeptFunc= new XMLListCollection();
+				deptDataDutyFunc= new XMLListCollection();
+//				var dutyData:XMLListCollection;
+				var seletedDeptFunc:Object=obj;
+				var dept_func_id:String=seletedDeptFunc.dept_func_id;
+				var xmlList:XMLList=pcbdm.getPeopleByDeptFunc(dept_func_id);
+				var dutyXmlList:XMLList=opdm.getDutyPhoneByDeptFunc(dept_func_id);      //按照只能ID查找部门
+				deptPeopleXmlList=xmlList;
+				onduyNumberXmlList=dutyXmlList;
+				if (xmlList.length() > 0)
+				{
+					// 加标识区分主界面和资源分析
+					for each(var itemXml:XML in xmlList..people)
+					{
+						itemXml.@checkbox="true";
+					}
+					for each(var itemXml1:XML in dutyXmlList..dept)
+					{
+						itemXml1.@checkbox="true";
+					}
+					adgdataDeptFunc=new XMLListCollection(xmlList);
+					deptDataDutyFunc=new XMLListCollection(dutyXmlList);
+					deptContactGrid.dataProvider=new HierarchicalData(adgdataDeptFunc);
+					searchHandler();//应急人员通讯录--自动过滤
+					if(deptDataDutyFunc.length==0)      //在值守人员没有数值传过去的时候，复选框会报错。
+					{
+						ondutyGrid.dataProvider=null;
+					}
+					else
+					{
+						ondutyGrid.dataProvider = new HierarchicalData(deptDataDutyFunc);
+//						if(xmlListDutyFuncColl != null && dutyXmlList.length()>0){//用于过滤
+//								xmlListDutyFuncColl.source = dutyXmlList;
+//								xmlListDutyFuncColl.refresh();
+//						}  
+						if(StringUtil.trim(searchDuty.text).length>0 && dutyXmlList.length()>0)//有过滤条件时进行过滤
+						{
+							filterDeptDutyFunc();;
+						}
+					}
+				}
+				else
+				{
+					deptContactGrid.dataProvider=null;
+				}
+				dutyDeptMsgXMLList = xmlList;
+			}
+			
+			//单选对应触发勾选联系人事件         
+			private function deptByRealmCbxHandler(event:AppEvent):void{
+				var selectedDeptContac:Object=event.data as Object;
+				var state:Boolean = selectedDeptContac.@state=="checked"?true:false;
+				var voiceSelArr:Array = new Array();
+				//在过滤出来的数据中勾选时处理start
+				if(viewStack.selectedIndex ==0)//按区域分类
+				{
+					if(selectedDeptContac.@people_id[0]!=null)
+					{
+						if(dpVS.selectedIndex==0 && isFilterData){
+							var xmlList:XMLList=pcbrm.getRawXML(); 
+							if(state)
+							{
+								xmlList.(@people_id == selectedDeptContac.@people_id[0].toString()).@state = "checked";
+							}
+							else
+							{
+								xmlList.(@people_id == selectedDeptContac.@people_id[0].toString()).@state = "unchecked";
+							}
+						}
+							
+						}
+						else if( dpVS.selectedIndex==1 && isDutyFilterData){
+							var dutyList:XMLList=opcf.getRawXML(); 
+							if(state)
+							{
+								dutyList.dept.(@dept_id == selectedDeptContac.@dept_id[0].toString()).@state = "checked";
+							}
+							else
+							{
+								dutyList.dept.(@dept_id == selectedDeptContac.@dept_id[0].toString()).@state = "unchecked";
+							}
+						
+						}//值守-按区域
+				}
+				else if(viewStack.selectedIndex ==1){//按职能分类
+					if(selectedDeptContac.@people_id[0]!=null)
+					{
+						if(dpVS.selectedIndex==0 && isFilterDataFunc){//在过滤的数据中勾选处理
+							var xmlListFunc:XMLList=pcbdm.getPeopleByDeptFunc(lstDeptFunc.selectedItem.code);
+							if(state)
+							{
+								xmlListFunc..people.(@people_id == selectedDeptContac.@people_id[0].toString()).@state = "checked";
+							}
+							else
+							{
+								xmlListFunc..people.(@people_id == selectedDeptContac.@people_id[0].toString()).@state = "unchecked";
+							}
+						}
+					}
+					else if(dpVS.selectedIndex==1 && isDutyFilterDataFunc){//在过滤的数据中勾选处理
+							var dutyListFunc:XMLList=opdm.getDutyPhoneByDeptFunc(lstDeptFunc.selectedItem.code);
+							if(state)
+							{
+								dutyListFunc..dept.(@dept_id == selectedDeptContac.@dept_id[0].toString()).@state = "checked";
+							}
+							else
+							{
+								dutyListFunc..dept.(@dept_id == selectedDeptContac.@dept_id[0].toString()).@state = "unchecked";
+							}
+						}
+				}
+				//在过滤出来的数据中勾选时处理end
+				if(viewStack.selectedIndex ==0 || viewStack.selectedIndex ==1)
+				{
+					//根据人员id区分是值守部门还是应急联络人
+					if(selectedDeptContac.@people_id[0]!=null)
+					{				
+						voiceSelArr.push({NAME_C:selectedDeptContac.@name[0].toString(),
+			      		CONTACTOR_MOBILE:selectedDeptContac.@cell[0].toString(),DEPT_NAME:selectedDeptContac.@dept_name[0].toString(),
+			      		CONTACTOR_TEL:selectedDeptContac.@tel[0].toString(),ADD_VALUE:state,
+			      		PEOPLE_ID:selectedDeptContac.@people_id[0].toString(),MARK_FROM:"DEPT_CONTACT_LIST"});
+					}
+					else
+					{
+						voiceSelArr.push({NAME_C:selectedDeptContac.@name[0].toString(),
+						CONTACTOR_MOBILE:selectedDeptContac.@cell[0].toString(),DEPT_NAME:null,
+						CONTACTOR_TEL:selectedDeptContac.@tel[0].toString(),ADD_VALUE:state,
+						PEOPLE_ID:selectedDeptContac.@dept_id[0].toString(),MARK_FROM:"ONDUTY_CONTACT_LIST"});
+					}
+	   			}
+	   			ExternalInterface.call("sendVoiceList",voiceSelArr);
+				//////////////////////////////跨部门电话会议END
+				if(viewStack.selectedIndex ==0)
+				{
+					if(selectedDeptContac.@people_id[0]!=null)
+					{//应急人员
+						setRealmMsgPeoList();
+//						getSendList(selectedDeptContac.@state,selectedDeptContac.@people_id,new XML(selectedDeptContac));
+					}
+					else{//应急值守
+						setRealmMsgDeptList();
+//						getDutySendList(selectedDeptContac.@state,selectedDeptContac.@dept_id,new XML(selectedDeptContac));
+					}
+				}else if(viewStack.selectedIndex ==1)//按职能部门
+				{
+					if(selectedDeptContac.@people_id[0]!=null)
+					{//应急人员
+						setFuncMsgPeoList();
+//						getSendList(selectedDeptContac.@state,selectedDeptContac.@people_id,new XML(selectedDeptContac));
+					}
+					else
+					{//应急值守
+						setFuncMsgDeptList();
+//						getDutySendList(selectedDeptContac.@state,selectedDeptContac.@dept_id,new XML(selectedDeptContac));
+					}
+				}
+			}
+		 //取得按区域分类应急人员的选择列表
+		 private function setRealmMsgPeoList():void
+		 {
+		 	var realmMsgTemXMLList:XMLList = new XMLList();
+			var xmlList:XMLList=pcbrm.getRawXML();         //读取全局的人员信息
+			realmMsgTemXMLList=xmlList.(@state == "checked");//alice
+			realmAdgdata=new XMLListCollection(realmMsgTemXMLList);
+		 }
+		 //取得按区域分类应急值守的选择列表
+		 private function setRealmMsgDeptList():void
+		 {
+		 	var dutyMsgTemXMLList:XMLList = new XMLList();
+			var xmlList:XMLList=opcf.getRawXML();         //读取全局的人员信息
+			dutyMsgTemXMLList=xmlList.dept.(@state == "checked");
+			dutyNumAdgdata=new XMLListCollection(dutyMsgTemXMLList);
+		 }
+		 //取得按职能分类应急人员的选择列表
+		 private function setFuncMsgPeoList():void
+		 {
+		 	var realmDeptMsgTemXMLListFunc:XMLList;
+			var xmlListRFunc:XMLList=pcbdm.getRawXML();
+			realmDeptMsgTemXMLListFunc=new XMLList(xmlListRFunc.(@state == "checked"));
+			realmAdgdata=new XMLListCollection(realmDeptMsgTemXMLListFunc);
+		 }
+		 //取得按按职分类应急值守的选择列表
+		 private function setFuncMsgDeptList():void
+		 {
+		 	var dutyDeptMsgTemXMLListFunc:XMLList = new XMLList();
+			var xmlListDFunc:XMLList=opdm.getRawXML();
+			dutyDeptMsgTemXMLListFunc=xmlListDFunc.dept.(@state == "checked");
+			dutyNumAdgdata=new XMLListCollection(dutyDeptMsgTemXMLListFunc);
+		 }
+    	 private function getSendList(state:String,peopleId:String,content:XML):void
+    	 {
+    	 	if(state == "checked"){
+				realmAdgdata.addItem(content.copy());
+			}
+			else if(state == "unchecked"){
+				for(var i:int=0;i<realmAdgdata.length;i++){
+					if(realmAdgdata.getItemAt(i).@people_id==peopleId){
+						realmAdgdata.removeItemAt(i);
+						break;
+					}
+				}
+			}
+    	 }
+    	 private function getDutySendList(state:String,deptId:String,content:XML):void
+    	 {
+    	 	if(state == "checked"){
+				dutyNumAdgdata.addItem(content);
+			}
+			else if(state == "unchecked"){
+				for(var i:int=0;i<dutyNumAdgdata.length;i++){
+					if(dutyNumAdgdata.getItemAt(i).@dept_id==deptId){
+						dutyNumAdgdata.removeItemAt(i);
+						break;
+					}
+				}
+			}
+    	 }
+    	//选择导出的列(应急联络人)
+			public function selectHeaderText(i:int ):void{
+				this["SelectHeaderText"+i].visible = ! this["SelectHeaderText"+i].visible;	
+			}
+		//选择导出的列(值守部门通讯录)
+			public function selectHeaderTextOut(i:int):void{
+				this["SelectHeaderTextOut"+i].visible = ! this["SelectHeaderTextOut"+i].visible;	
+			}
+      
+      //获取当前url路径
+		private function getFullUrladd():void
+		{
+			var url:String = Application.application.url;
+			port = URLUtil.getPort(url);
+            serverName = URLUtil.getServerName(url);
+            serverUrl='http://'+serverName+':'+port+'/gz_security/ExcelExport.jsp';       
+		}
+		
+		
+      private function faultHandler(event:FaultEvent):void{
+      	Alert.show(event.fault.faultString);
+      }
+      
+
+	
+	//弹出短信发送窗口（应急联络人）
+	private function msgBtnClick():void{
+		var deptMsgDetailsWin:deptDetailPopUpWins = new deptDetailPopUpWins();
+		if(realmAdgdata.length>0)
+		{
+			deptMsgDetailsWin.deptMsgArrc = realmAdgdata;		
+			PopUpManager.addPopUp(deptMsgDetailsWin,this,true);
+			PopUpManager.centerPopUp(deptMsgDetailsWin);
+		}else
+		{
+		    Alert.show("请选择需要发送短信的人员信息。");
+		}
+		
+	}
+	//弹出短信发送窗口（值守通讯录）
+	private function dutyMsgBtnClick():void{
+		var deptMsgDetailsWin:deptDetailPopUpWins = new deptDetailPopUpWins();
+		if(dutyNumAdgdata.length>0)
+		{
+			deptMsgDetailsWin.deptMsgArrc = dutyNumAdgdata;		
+			PopUpManager.addPopUp(deptMsgDetailsWin,this,true);
+			PopUpManager.centerPopUp(deptMsgDetailsWin);
+		}else
+		{
+			Alert.show("请选择需要发送短信的人员信息。");
+		}
+		
+	}
+	
+	
+	//发邮件(应急联络人)
+	public function sendMail():void {
+		var nullStr:String="";   //邮件为空的人
+		if(realmAdgdata!=null && realmAdgdata.length>0) {
+			var str:String = "mailto:";
+			for(var i:int=0; i < realmAdgdata.length; i++) {
+				if(realmAdgdata.getItemAt(i).@e_mail != "")
+				{
+					str = str + realmAdgdata.getItemAt(i).@e_mail +";";
+				}else
+				{
+					nullStr = nullStr+realmAdgdata.getItemAt(i).@name + "、";
+				}			
+			}
+			if(nullStr!="")
+			{
+				Alert.show(nullStr.substring(0,nullStr.length-1) + " 邮箱为空，不会加入发送列表中。", "", Alert.YES|Alert.NO, null, function(evt:CloseEvent):void{
+					if (evt.detail == Alert.YES){	
+						if(str.length>7)
+						{
+							var closeSucUrl:URLRequest=new URLRequest(str);
+				    		navigateToURL(closeSucUrl,"_self");
+						}              
+					}
+					else if(evt.detail == Alert.NO){}
+				}, null, Alert.YES);
+			
+			}
+			else
+			{
+				if(str.length>7)
+				{
+					var closeSucUrl:URLRequest=new URLRequest(str);
+		    		navigateToURL(closeSucUrl,"_self");
+				}
+			}
+		}else
+		{
+			Alert.show("没有可以发送的联系人");
+		}
+//		if(nullStr!="")
+//		{
+//			Alert.show(nullStr+"E-mail为空不能发送！");
+//		}
+	}
+	//发邮件(值守部门)
+	public function dutySendMail():void{
+		var nullStr:String="";   //邮件为空的人
+		if(dutyNumAdgdata!=null && dutyNumAdgdata.length>0) {
+			var str:String = "mailto:";
+			for(var i:int=0; i < dutyNumAdgdata.length; i++) {
+				if(dutyNumAdgdata.getItemAt(i).@complaintEmail != "")
+				{
+					str = str + dutyNumAdgdata.getItemAt(i).@complaintEmail +";";
+				}else{
+					nullStr = nullStr+dutyNumAdgdata.getItemAt(i).@name + ";"+"\n";
+				}
+			}
+			if(str.length>7)
+			{
+				var closeSucUrl:URLRequest=new URLRequest(str);
+	    		navigateToURL(closeSucUrl,"_self");
+			}
+		}else
+		{
+			Alert.show("没有可以发送的联系人");
+		}
+		if(nullStr!="")
+		{
+			Alert.show(nullStr+"E-mail为空不能发送！");
+		}
+	}
+
+	
+	//全选 导出项
+	public function selectAllPopUpCheckBox():void {
+		for(var i:int = 1; i < 8; i++) {
+			this["popUpCheckBox"+i].selected = ! this["popUpCheckBox"+i].selected;
+			this["SelectHeaderText"+i].visible = ! this["SelectHeaderText"+i].visible;
+		}
+	}
+	
+	//应急联络人员通讯录的全选方法
+	public function selectAllPeople():void{
+		var state:String;
+		if(peopleAllCheck.selected)
+		{state="checked";}
+		else
+		{state="unchecked";}
+		var realmMsgTemXMLList:XMLList = new XMLList();
+		var xmlList:XMLList;
+		if(deptPeopleXmlList.length()>0)
+		{
+			if((viewStack.selectedIndex ==0 && isFilterData))//对过滤过的数据全选
+			{
+				for each(var filterX:XML in xmlListColl)
+				{
+					filterX.@state=state;
+					for each(var itemVal:XML in deptPeopleXmlList..people)
+					{
+						if(filterX.@people_id == itemVal.@people_id )
+						{
+							itemVal.@state=state;
+							break;
+						}
+					}
+				}
+			}
+			else if(viewStack.selectedIndex ==1 && isFilterDataFunc)
+			{
+//				xmlList=pcbdm.getRawXML();
+				var temObj:Object = deptContactGrid.dataProvider;
+				var curTree:XML = XML(temObj.source.source.source);
+				for each(var item:XML in curTree..people)
+				{
+					item.@state=state;
+//					for each(var itemVal1:XML in adgdataDeptFunc.source..people)
+					for each(var itemVal1:XML in deptPeopleXmlList..people)
+					{
+						if(item.@people_id == itemVal1.@people_id )
+						{
+							itemVal1.@state=state;
+							break;
+						}
+					}
+				}
+			}
+			//////////////////////////////////
+			else//没过滤时全选动作
+			{
+				for each(var itemsVal:XML in deptPeopleXmlList..people)
+				{
+					itemsVal.@state=state;
+				}
+			}
+			
+			if(viewStack.selectedIndex ==0)
+			{
+				xmlList=pcbrm.getRawXML();         //读取全局的人员信息
+			}else{
+				xmlList=pcbdm.getRawXML();
+			}
+			realmMsgTemXMLList=new XMLList(xmlList.(@state == "checked"));
+			realmAdgdata=new XMLListCollection(realmMsgTemXMLList);
+		}else{
+			Alert.show("当前没有可选项");
+		}
+		
+		
+	}
+	
+	 
+	 //值守部门通讯录全选 
+	 public function selectAllOndutyNumber():void{
+	 	var state:String;
+		if(deptAllCheck.selected)
+		{state="checked";}
+		else
+		{state="unchecked";}
+	 	var deptData:XMLListCollection;
+	 	var dutyDeptMsgTemXMLList:XMLList = new XMLList();
+	 	var xmlList:XMLList;
+	 	if(onduyNumberXmlList.length()>0)
+	 	{
+ 			if(viewStack.selectedIndex ==0 && isDutyFilterData)//对过滤过的数据全选
+			{
+	 			for each(var dutyX:XML in xmlListDutyColl)
+	 			{
+	 				dutyX.@state=state;
+		 			for each(var itemVal:XML in onduyNumberXmlList)
+			 		{
+			 			if(dutyX.@dept_id == itemVal.@dept_id)
+			 			{
+			 				itemVal.@state=state;
+			 				break;
+			 			}
+			 		}		 		
+		 		}
+	 		}
+	 		else if(viewStack.selectedIndex ==1 && isDutyFilterDataFunc)
+	 		{
+ 			    var temObj:Object = ondutyGrid.dataProvider;
+				var curTree:XML = XML(temObj.source.source.source);
+				for each(var item:XML in curTree..dept)
+				{
+					item.@state=state;
+					for each(var itemVal1:XML in onduyNumberXmlList..dept)
+					{
+						if(item.@dept_id == itemVal1.@dept_id )
+						{
+							itemVal1.@state=state;
+							break;
+						}
+					}
+				}
+	 		}
+	 		else
+	 		{
+	 			for each(var itemsVal:XML in onduyNumberXmlList)
+		 		{
+		 			itemsVal.@state=state;
+		 		}
+	 		}
+			if(viewStack.selectedIndex ==0)
+			{
+	 			xmlList=opcf.getRawXML();   
+	 		}      //读取全局的人员信息
+	 		else
+	 		{	
+	 			xmlList=opdm.getRawXML();
+	 		}
+			dutyDeptMsgTemXMLList=xmlList.dept.(@state == "checked");
+			dutyNumAdgdata=new XMLListCollection(dutyDeptMsgTemXMLList);
+	 	}
+	 	else
+	 	{
+	 		Alert.show("当前没有可选项");
+	 	}
+	 }
+	 //应急人员通讯录（按区域分类）--按部门和名称过滤
+	 private function filterDeptOrName(item:Object):Boolean {
+			var node:XML=XML(item);
+			var searchText:String=StringUtil.trim(search.text);
+			var result:Boolean=false;
+			if(node.@isBranch=="false"){
+				if(node.hasOwnProperty("@name")){
+					result||=node.@name.match(new RegExp(searchText, "i"));
+				} 
+				if(node.hasOwnProperty("@dept_name")){
+					result||=node.@dept_name.match(new RegExp(searchText, "i"));
+				}
+			}
+			return result;
+		}  
+	//过滤
+	private function searchInfos():void{
+	
+		if(search !=null && adgdataRealm!=null && StringUtil.trim(search.text).length>0){
+			if(adgdataRealm.length > 0){
+				var temStr:String = adgdataRealm[0].toString();
+				temStr = temStr.substring(0,temStr.indexOf(">")+1);
+				if(xmlListColl.toXMLString().length>0)
+				{
+				temStr = temStr + xmlListColl.toXMLString() + "</realm>";
+				deptContactGrid.dataProvider=new HierarchicalData(new XMLListCollection(new XMLList(temStr)));
+				deptContactGrid.displayItemsExpanded = true;
+				isFilterData=true;//alice
+				}
+				else{
+					if(adgdataRealm!=null && adgdataRealm.length > 0)
+					{deptContactGrid.dataProvider=new HierarchicalData(adgdataRealm);}
+					else{deptContactGrid.dataProvider=null;}
+					isFilterData=false;
+				}
+			}
+		}
+		else
+		{
+			if(adgdataRealm!=null && adgdataRealm.length > 0)
+			{
+				deptContactGrid.dataProvider=new HierarchicalData(adgdataRealm);
+			}
+			else if(deptContactGrid!=null)
+			{
+				deptContactGrid.dataProvider=null;
+			}
+			isFilterData=false;
+		}
+	}
+	private function searchHandler():void
+	{
+		if(classsifyMark =='realm')
+		{
+			if(search != null && adgdataRealm !=null && StringUtil.trim(search.text).length>0)
+			{
+				xmlListColl.refresh();
+//				isFilterData = true;
+			}
+			else
+			{
+				if(adgdataRealm!=null)
+				{
+				deptContactGrid.dataProvider=new HierarchicalData(adgdataRealm);
+				}
+				else
+				{deptContactGrid.dataProvider=null;}
+				isFilterData = false;
+			}
+		}
+		else if(classsifyMark =='deptFunc')
+		{
+			if(StringUtil.trim(search.text).length>0)
+			{
+				filterDeptFunc();
+			}
+			else
+			{
+				deptContactGrid.dataProvider=new HierarchicalData(adgdataDeptFunc);
+				isFilterDataFunc = false;
+			}
+		}
+	}
+  private function filterDeptFunc():void//按职能部门应急人员通讯录过滤
+   {
+   		var node:XML=XML(adgdataDeptFunc[0]);
+   		trace(node.toXMLString());
+   		var xmlString:String = recursionMethod(node);//递归过滤
+   		trace(xmlString);
+   		deptContactGrid.dataProvider=new HierarchicalData(new XMLListCollection(new XMLList(xmlString)));
+		deptContactGrid.displayItemsExpanded = true;
+		isFilterDataFunc = true;
+   }
+   private function recursionMethod(node:XML):String {//递归过滤
+   		var temStr:String = node.toString();
+   		var searchText:String=search.text;
+   		var returnStr:String = "";
+   		if(temStr.indexOf(">"))
+   		{
+			temStr = temStr.substring(0,temStr.indexOf(">")+1);
+			returnStr = temStr;
+			if(node.people!=null)
+			{
+				returnStr += (new XMLListCollection(node.people.(@name.match(new RegExp(searchText, "i")) || @dept_name.match(new RegExp(searchText, "i"))))).toXMLString() ;
+			}
+			if(node.realm!=null)
+			{
+				var xmlList:XMLList = node.realm;
+				for each(var item:XML in xmlList)
+				{
+					returnStr += recursionMethod(item);
+				}
+			}
+			if(returnStr!="" && (node.people!=null || node.realm!=null))
+			{return returnStr + "</realm>";}
+			else
+			{return "";}
+   		}
+   		return "";
+   }
+   private function searchDutyHandler():void
+   {
+   		if(classsifyMark =='realm')
+		{
+			if(StringUtil.trim(searchDuty.text).length>0)
+			{
+				xmlListDutyColl.refresh();
+				isDutyFilterData = true;
+			}
+			else
+			{
+				ondutyGrid.dataProvider=new HierarchicalData(deptDataDuty);
+				isDutyFilterData = false;
+			}
+		}
+		else if(classsifyMark =='deptFunc')
+		{
+			if(StringUtil.trim(searchDuty.text).length>0)
+			{
+				filterDeptDutyFunc();
+			}
+			else
+			{
+				ondutyGrid.dataProvider=new HierarchicalData(deptDataDutyFunc);
+				isDutyFilterDataFunc = false;
+			}
+		}
+   }
+   //按职能值守通讯录过滤start
+   private function filterDeptDutyFunc():void//按职能部门应急人员通讯录过滤
+   {
+   		var node:XML=XML(deptDataDutyFunc[0]);
+   		trace(node.toXMLString());
+   		var xmlString:String = dutyRecursionMethod(node);//递归过滤
+   		trace(xmlString);
+   		ondutyGrid.dataProvider=new HierarchicalData(new XMLListCollection(new XMLList(xmlString)));
+		ondutyGrid.displayItemsExpanded = true;
+		isDutyFilterDataFunc = true;
+   }
+   private function dutyRecursionMethod(node:XML):String {//递归过滤
+   		var temStr:String = node.toString();
+   		var searchText:String=searchDuty.text;
+   		var returnStr:String = "";
+   		if(temStr.indexOf(">"))
+   		{
+			temStr = temStr.substring(0,temStr.indexOf(">")+1);
+			returnStr = temStr;
+			if(node.dept!=null)
+			{
+				returnStr += (new XMLListCollection(node.dept.(@name.match(new RegExp(searchText, "i"))))).toXMLString() ;
+			}
+			if(node.realm!=null)
+			{
+				var xmlList:XMLList = node.realm;
+				for each(var item:XML in xmlList)
+				{
+					returnStr += dutyRecursionMethod(item);
+				}
+			}
+			if(returnStr!="" && (node.dept!=null || node.realm!=null))
+			{return returnStr + "</realm>";}
+			else
+			{return "";}
+   		}
+   		return "";
+   }
+   //按职能值守通讯录过滤end
+   private function searchDutyInfos():void{
+	
+		if(searchDuty !=null && xmlListDutyColl!=null && searchDuty.text.length>0){
+			if(deptDataDuty != null && deptDataDuty.length > 0){
+				if(xmlListDutyColl.length>0)
+				{
+				ondutyGrid.dataProvider=new HierarchicalData(new XMLListCollection(new XMLList(xmlListDutyColl.toXMLString())));
+				ondutyGrid.displayItemsExpanded = true;
+				isDutyFilterData = true;
+				}
+				else{
+					ondutyGrid.dataProvider=null;
+					isDutyFilterData = false;
+				}
+			}
+		}
+		else
+		{
+			if(deptDataDuty!=null && deptDataDuty.length > 0)
+			{
+				ondutyGrid.dataProvider=new HierarchicalData(deptDataDuty);
+			}
+			else if(ondutyGrid!=null)
+			{
+				ondutyGrid.dataProvider=null;
+			}
+			isDutyFilterData = false;
+		}
+	}
+	//应急值守通讯录（按区域分类）--按部门和名称过滤
+	private function filterDutyDeptOrName(item:Object):Boolean {
+		var node:XML=XML(item);
+		var searchText:String=searchDuty.text;
+		var result:Boolean=false;
+		if(node.@isBranch=="false"){
+			if(node.hasOwnProperty("@name")){
+				result||=node.@name.match(new RegExp(searchText, "i"));
+			} 
+			if(node.hasOwnProperty("@dept_name")){
+				result||=node.@dept_name.match(new RegExp(searchText, "i"));
+			}
+		}
+		return result;
+	} 
+	private function searchDutyFuncInfos():void{
+	
+		if(searchDuty !=null && xmlListDutyColl!=null && searchDuty.text.length>0){
+			if(deptDataDuty.length > 0){
+				ondutyGrid.dataProvider=new HierarchicalData(new XMLListCollection(new XMLList(xmlListDutyColl.toXMLString())));
+				ondutyGrid.displayItemsExpanded = true;
+				isDutyFilterData = true;
+			}
+		}
+		else
+		{
+			if(deptDataDuty!=null && deptDataDuty.length > 0)
+			{
+				ondutyGrid.dataProvider=new HierarchicalData(deptDataDuty);
+			}
+			else if(ondutyGrid!=null)
+			{
+				ondutyGrid.dataProvider=null;
+			}
+			isDutyFilterData = false;
+		}
+	}
+	private function indexChangeHandler():void
+	{
+		if(exTg.selectedIndex==0)
+		{
+			if(dpTg.selectedIndex==0)
+			{
+				if(adgdataRealm!=null)
+				{deptContactGrid.dataProvider = new HierarchicalData(adgdataRealm);}
+				else{
+				deptContactGrid.dataProvider = null;
+				}
+				isFilterData = false;
+				setRealmMsgPeoList();
+			}
+			else if(dpTg.selectedIndex==1){
+				if(deptDataDuty!=null)
+				{ondutyGrid.dataProvider= new HierarchicalData(deptDataDuty);}
+				else{ondutyGrid.dataProvider= null;}
+				isDutyFilterData=false;
+				setRealmMsgDeptList();
+			}
+		}
+		else if(exTg.selectedIndex==1){
+			if(dpTg.selectedIndex==0 )
+			{
+				if( adgdataDeptFunc!= null)
+				{deptContactGrid.dataProvider = new HierarchicalData(adgdataDeptFunc);}
+				else{deptContactGrid.dataProvider = null;}
+				isFilterDataFunc=false;
+				setFuncMsgPeoList();
+			}
+			else if(dpTg.selectedIndex==1){
+				if(deptDataDutyFunc!=null)
+				{ondutyGrid.dataProvider= new HierarchicalData(deptDataDutyFunc);}
+				else{ondutyGrid.dataProvider= null;}
+				isDutyFilterDataFunc=false;
+				setFuncMsgDeptList();
+			}
+		}
+	}
+    ]]>
+  </mx:Script>  	
+  	<mx:XMLListCollection id="xmlListColl" filterFunction="filterDeptOrName" collectionChange="searchInfos()" />
+  	<mx:XMLListCollection id="xmlListDutyColl" filterFunction="filterDutyDeptOrName" collectionChange="searchDutyInfos()" />
+  	<mx:XMLListCollection id="xmlListDutyFuncColl" filterFunction="filterDutyDeptOrName" collectionChange="searchDutyFuncInfos()" />
+ 	<mx:HDividedBox horizontalGap="5" width="100%" height="100%" backgroundColor="white"> 	
+ 	<mx:VBox width="30%" height="100%" >
+ 	<mx:ControlBar paddingTop="0" paddingBottom="0">
+ 		<mx:ToggleButtonBar id="exTg" dataProvider="{viewStack}" itemClick="indexChangeHandler()"/>
+ 	</mx:ControlBar>
+ 		<mx:ViewStack id="viewStack" width="100%" height="100%" creationPolicy="all">
+			<mx:VBox label="区域分类" width="100%" height="100%" backgroundColor="#ffffff">
+				<mx:Tree id="checkTree" labelField="@label" width="100%" height="100%" itemRenderer="com.sunwah.components.checkTree.SingleSelectCheckTreeRenderer"
+						 folderOpenIcon="{null}" folderClosedIcon="{null}" showRoot="false" />
+			</mx:VBox>
+			<mx:VBox label="职能分类" width="100%" height="100%" backgroundColor="#ffffff">
+				<mx:VBox width="100%" height="100%"  horizontalGap="15">
+					<mx:Text text="职能部门类型:"/>
+					<mx:List id="lstDeptFunc"  width="100%" rowCount="20" change="lstDeptFuncChangeHandler(event)"/>
+				</mx:VBox>
+			</mx:VBox>
+		</mx:ViewStack>
+ 	</mx:VBox>
+	<mx:VBox height="100%" width="70%">
+		<mx:ControlBar paddingTop="0" paddingBottom="0">
+ 			<mx:ToggleButtonBar id="dpTg" dataProvider="{dpVS}"/>
+ 		</mx:ControlBar>
+		<mx:ViewStack id="dpVS" width="100%" height="100%" creationPolicy="all">
+		<mx:VBox label="应急人员通讯列表" width="100%" height="100%" backgroundColor="#ffffff">
+		<mx:ControlBar paddingTop="0" paddingBottom="0">
+ 			<mx:Label text="部门/姓名："/>
+			<mx:TextInput text="" id="search" width="120" change="searchHandler();" backgroundColor="0xffffff" color="0x000000"  />
+ 		</mx:ControlBar>
+ 		<mx:AdvancedDataGrid id="deptContactGrid" width="100%" height="100%" sortableColumns="false"
+									 groupItemRenderer="com.sunwah.components.checkADG.CheckADGRenderer" sortExpertMode="true" displayItemsExpanded="true">
+			<mx:columns>
+				<mx:AdvancedDataGridColumn dataField="@name" headerText="区域/姓名"/>
+				<mx:AdvancedDataGridColumn dataField="@dept_name" headerText="部门"/>
+				<mx:AdvancedDataGridColumn dataField="@cell" headerText="移动电话">
+					<mx:itemRenderer>
+						<mx:Component>
+							<MobileNum:voiceCallSoftPhone  mobileNum="{data.@cell}"/>
+						</mx:Component>
+					</mx:itemRenderer>
+				</mx:AdvancedDataGridColumn>	
+				<mx:AdvancedDataGridColumn dataField="@tel" headerText="固定电话">
+					<mx:itemRenderer>
+						<mx:Component>
+							<MobileNum:voiceCallSoftPhone  mobileNum="{data.@tel}"/>
+						</mx:Component>
+					</mx:itemRenderer>
+				</mx:AdvancedDataGridColumn>
+				<mx:AdvancedDataGridColumn dataField="@e_mail" headerText="E-mail"/>
+				<mx:AdvancedDataGridColumn dataField="@post_name" headerText="职务"/>
+				<mx:AdvancedDataGridColumn dataField="@safe_role_name" headerText="安全角色"/>
+			</mx:columns>
+		</mx:AdvancedDataGrid>
+		<mx:DataGrid id="dpMsAdgId" width="100%" height="0" dataProvider="{realmAdgdata}" visible="false"><!--used for export to excel-->
+			<mx:columns>
+				<mx:DataGridColumn dataField="@name" headerText="姓名" id="SelectHeaderText1"/>
+				<mx:DataGridColumn dataField="@dept_name" headerText="部门" id="SelectHeaderText2"/>
+				<mx:DataGridColumn dataField="@cell" headerText="移动电话" id="SelectHeaderText3"/>
+				<mx:DataGridColumn dataField="@tel" headerText="固定电话" id="SelectHeaderText4"/>
+				<mx:DataGridColumn dataField="@e_mail" headerText="E-mail" id="SelectHeaderText5"/>
+				<mx:DataGridColumn dataField="@post_name" headerText="职务" id="SelectHeaderText6"/>
+				<mx:DataGridColumn dataField="@safe_role_name" headerText="安全角色" id="SelectHeaderText7"/>		 
+			</mx:columns>
+		</mx:DataGrid>	
+			
+		<mx:HBox>
+		<mx:CheckBox id="peopleAllCheck" label="全选" width="51" height="25" fontSize="12" selected="false" change="selectAllPeople()"/>
+		<mx:ControlBar paddingTop="0" paddingBottom="0">
+	 	<mx:Button  label="发送短信" useHandCursor="true" buttonMode="true" click="msgBtnClick();"/>
+	 	<mx:Button  label="发送邮件" useHandCursor="true" buttonMode="true" click="sendMail();"/>
+	 	<mx:Button  label="导出EXCEL" useHandCursor="true" buttonMode="true" click="loadDGInExcel(dpMsAdgId,serverUrl);"/>
+	 	<mx:PopUpButton label="选择导出信息" >
+			<mx:popUp>			
+				<mx:VBox backgroundColor="white">
+				<mx:HBox>
+					<mx:CheckBox label="姓名" click="selectHeaderText(1);" selected="true"/>
+					<mx:CheckBox label="部门" click="selectHeaderText(2);" selected="true"/>
+					<mx:CheckBox label="移动电话" click="selectHeaderText(3);" selected="true"/>
+					<mx:CheckBox label="固定电话" click="selectHeaderText(4);" selected="true"/>
+				</mx:HBox>
+				<mx:HBox>
+					<mx:CheckBox label="E-mail" click="selectHeaderText(5);" selected="true"/>
+					<mx:CheckBox label="业务" click="selectHeaderText(6);" selected="true"/>
+					<mx:CheckBox label="安全角色" click="selectHeaderText(7);" selected="true"/>
+				</mx:HBox>				
+				</mx:VBox>			
+		   </mx:popUp>
+		  </mx:PopUpButton>
+		</mx:ControlBar>
+		</mx:HBox>
+		</mx:VBox>
+		
+		<mx:VBox label="应急值守通讯列表" width="100%" height="100%" backgroundColor="#ffffff">
+		<mx:ControlBar paddingTop="0" paddingBottom="0">
+ 			<mx:Label text="部门/姓名：" />
+			<mx:TextInput text="" id="searchDuty" width="120" change="searchDutyHandler();" backgroundColor="0xffffff" color="0x000000" />
+ 		</mx:ControlBar>
+ 		<mx:AdvancedDataGrid id="ondutyGrid" width="100%" height="100%" sortableColumns="false"
+										 groupItemRenderer="com.sunwah.components.checkADG.CheckADGRenderer" sortExpertMode="true" displayItemsExpanded="true">
+		<mx:columns>
+			<mx:AdvancedDataGridColumn dataField="@name" headerText="部门"/>
+			<mx:AdvancedDataGridColumn dataField="@cell" headerText="值守手机">
+				<mx:itemRenderer>
+					<mx:Component>
+						<MobileNum:voiceCallSoftPhone  mobileNum="{data.@cell}"/>
+					</mx:Component>
+				</mx:itemRenderer>
+			</mx:AdvancedDataGridColumn>	
+			<mx:AdvancedDataGridColumn dataField="@tel" headerText="值守电话">
+				<mx:itemRenderer>
+					<mx:Component>
+						<MobileNum:voiceCallSoftPhone  mobileNum="{data.@cell}"/>
+					</mx:Component>
+				</mx:itemRenderer>
+			</mx:AdvancedDataGridColumn>
+			<mx:AdvancedDataGridColumn dataField="@fax" headerText="值守传真"/>
+			<mx:AdvancedDataGridColumn dataField="@complaintPhoneNum" headerText="投诉电话"/>
+			<mx:AdvancedDataGridColumn dataField="@complaintCellNum" headerText="投诉手机"/>
+			<mx:AdvancedDataGridColumn dataField="@complaintEmail" headerText="投诉E-mail"/>
+		</mx:columns>
+		</mx:AdvancedDataGrid>
+		<mx:DataGrid id="dpNumSm" width="100%" height="0" dataProvider="{dutyNumAdgdata}" visible="false"><!--used for export to excel-->
+			<mx:columns>
+				<mx:DataGridColumn dataField="@name" headerText="部门" id="SelectHeaderTextOut1"/>
+				<mx:DataGridColumn dataField="@cell" headerText="值守手机" id="SelectHeaderTextOut2"/>
+				<mx:DataGridColumn dataField="@tel" headerText="值守电话" id="SelectHeaderTextOut3"/>
+				<mx:DataGridColumn dataField="@fax" headerText="值守传真" id="SelectHeaderTextOut4"/>
+				<mx:DataGridColumn dataField="@complaintPhoneNum" headerText="投诉电话" id="SelectHeaderTextOut5"/>
+				<mx:DataGridColumn dataField="@complaintCellNum" headerText="投诉手机" id="SelectHeaderTextOut6"/>
+				<mx:DataGridColumn dataField="@complaintEmail" headerText="投诉E-mail" id="SelectHeaderTextOut7"/>	 
+			</mx:columns>
+		</mx:DataGrid>
+		<mx:HBox>
+		<mx:CheckBox id="deptAllCheck" label="全选" width="51" height="25" fontSize="12" selected="false" change="selectAllOndutyNumber()"/>
+		<mx:ControlBar paddingTop="0" paddingBottom="0">
+		 	<mx:Button  label="发送短信" useHandCursor="true" buttonMode="true" click="dutyMsgBtnClick();"/>
+		 	<mx:Button  label="发送邮件" useHandCursor="true" buttonMode="true" click="dutySendMail();"/>
+		 	<mx:Button  label="导出EXCEL" useHandCursor="true" buttonMode="true" click="loadDGInExcel(dpNumSm,serverUrl);"/>
+		 	<mx:PopUpButton label="选择导出信息" >
+				<mx:popUp>			
+					<mx:VBox backgroundColor="white">
+					<mx:HBox>
+						<mx:CheckBox label="部门"    click="selectHeaderTextOut(1);" selected="true"/>
+						<mx:CheckBox label="值守手机" click="selectHeaderTextOut(2);" selected="true"/>
+						<mx:CheckBox label="值守电话" click="selectHeaderTextOut(3);" selected="true"/>
+						<mx:CheckBox label="值守传真" click="selectHeaderTextOut(4);" selected="true"/>
+					</mx:HBox>
+					<mx:HBox>
+						<mx:CheckBox label="投诉电话" click="selectHeaderTextOut(5);" selected="true"/>
+						<mx:CheckBox label="投诉手机" click="selectHeaderTextOut(6);" selected="true"/>
+						<mx:CheckBox label="投诉E-mail" click="selectHeaderTextOut(7);" selected="true"/>
+					</mx:HBox>				
+					</mx:VBox>			
+			   </mx:popUp>
+		  </mx:PopUpButton>
+		</mx:ControlBar>
+		</mx:HBox>
+		</mx:VBox>
+		</mx:ViewStack>
+	</mx:VBox>
+	
+	</mx:HDividedBox>	
+	
+</mx:Canvas>

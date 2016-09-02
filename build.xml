@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project name="jm_emDuty" default="all" basedir=".">
+	<property file="build.properties" />
+
+	<path id="project.class.path">
+		<pathelement location="." />
+		<pathelement location="${classes.dir}" />
+		<fileset dir="${build.lib.dir}">
+			<include name="**/*.jar" />
+		</fileset>
+		<fileset dir="${run.lib.dir}">
+			<include name="**/*.jar" />
+		</fileset>
+	</path>
+
+	<patternset id="test.sources.pattern">
+		<include name="**/*Test.java" />
+	</patternset>
+
+	<!--  构建清理  -->
+	<target name="clean">
+		<echo message="Running clean target" />
+		<delete dir="${target.dir}" quiet="true" failonerror="false" />
+	</target>
+
+	<!--  构建初始化  -->
+	<target name="init" depends="clean">
+		<echo message="Running init target" />
+		<mkdir dir="${classes.dir}" />
+		<mkdir dir="${target.src.dir}" />
+		<mkdir dir="${deployment.dir}" />
+		<mkdir dir="${build.dir}" />
+		<mkdir dir="${reports.dir}" />
+		<!--  是否执行单元测试标识  -->
+		<condition property="unit.tests.yes">
+			<istrue value="${unit.tests.on}" />
+		</condition>
+		<!--  是否执行热部署标识  -->
+		<condition property="deployment.yes">
+			<istrue value="${deployment.on}" />
+		</condition>
+		<!--  是否执行JSP预编译标识  -->
+		<condition property="jasper.yes">
+			<istrue value="${jasper.on}" />
+		</condition>
+		<!-- 拷贝配置文件及实体映射文件  -->
+		<copy todir="${classes.dir}">
+			<fileset dir="${config.dir}" />
+			<fileset dir="${src.dir}" excludes="**/*.java" />
+			<fileset dir="${test.unit.dir}" excludes="**/*.java" />
+		</copy>
+	</target>
+
+	<target name="all" depends="clean,init">
+		<antcall target="compile" />
+		<antcall target="jasper" />
+		<!-- <antcall target="compile-tests" />
+		<antcall target="run-tests" /> -->
+		<antcall target="war" />
+		<antcall target="run-deploy" />
+	</target>
+
+	<!-- 编译源文件 -->
+	<target name="compile">
+		<echo message="Running compile target" />
+		<javac destdir="${classes.dir}" debug="true" encoding="${javac.encoding}">
+			<src path="${src.dir}" />
+			<classpath refid="project.class.path" />
+		</javac>
+	</target>
+
+	<!-- 预编译JSP文件 -->
+	<target name="jasper" if="jasper.yes">
+		<echo message="Running jasper target" />
+		<jasper validateXml="false" uriRoot="${web.dir}" webXmlFragment="${web.dir}/WEB-INF/generated_web.xml" addWebXmlMappings="true" outputdir="${target.src.dir}" />
+		<javac destdir="${classes.dir}" debug="true" encoding="${javac.encoding}">
+			<src path="${target.src.dir}" />
+			<classpath refid="project.class.path" />
+		</javac>
+	</target>
+
+	<taskdef name="jasper" classname="org.apache.jasper.JspC">
+		<classpath refid="project.class.path" />
+	</taskdef>
+
+	<!-- 编译单元测试源文件 -->
+	<target name="compile-tests" if="unit.tests.yes">
+		<echo message="Running compile-tests target" />
+		<!-- 注意：编译代码需要指定编码格式 -->
+		<javac destdir="${classes.dir}" debug="true" encoding="${javac.encoding}">
+			<src path="${test.unit.dir}" />
+			<classpath refid="project.class.path" />
+		</javac>
+	</target>
+
+	<!-- 运行单元测试 
+	<target name="run-tests" if="unit.tests.yes">
+		<echo message="Running unit tests" />
+		<mkdir dir="${logs.junit.dir}" />
+		<junit fork="yes" haltonfailure="true" dir="${basedir}" printsummary="yes">
+			<classpath location="${classes.dir}" />
+			<classpath refid="project.class.path" />
+			<formatter type="plain" usefile="true" />
+			<formatter type="xml" usefile="true" />
+			<batchtest fork="yes" todir="${logs.junit.dir}">
+				<fileset dir="${test.unit.dir}">
+					<patternset refid="test.sources.pattern" />
+				</fileset>
+			</batchtest>
+		</junit>
+	</target>
+	 -->
+
+	<!-- 执行应用部署    -->
+	<target name="run-deploy" if="deployment.yes">
+		<echo message="Running run-deploy target" />
+		<antcall target="undeploy" />
+		<antcall target="deploy" />
+	</target>
+
+
+	<!-- 将应用打成WAR包 -->
+	<target name="war">
+		<echo message="Running war target" />
+		<war destfile="${deployment.dir}/${project.name}.war" webxml="${web.dir}/WEB-INF/web.xml">
+			<fileset dir="${web.dir}" />
+			<classes dir="${classes.dir}" />
+		</war>
+	</target>
+
+	<!-- 取消应用部署  -->
+	<target name="undeploy" description="Remove web application" depends="context.status" if="context.undeployable">
+		<undeploy url="${mgr.url}" username="${mgr.username}" password="${mgr.password}" path="${mgr.context.path}" />
+	</target>
+
+	<!-- 部署应用  -->
+	<target name="deploy" description="Install web application">
+		<deploy url="${mgr.url}" username="${mgr.username}" password="${mgr.password}" path="${mgr.context.path}" war="file:${deployment.dir}/${project.name}.war" />
+	</target>
+	
+	<!-- 检测应用当前状态  -->
+	<target name="context.status">
+			<property name="running" value="${mgr.context.path}:running" />
+			<property name="stopped" value="${mgr.context.path}:stopped" />
+			<list url="${mgr.url}" outputproperty="ctx.status" username="${mgr.username}" password="${mgr.password}">
+		</list>
+		<condition property="context.running">
+			<contains string="${ctx.status}" substring="${running}" />
+		</condition>
+		<condition property="context.stopped">
+			<contains string="${ctx.status}" substring="${stopped}" />
+		</condition>
+		<condition property="context.notInstalled">
+			<and>
+				<isfalse value="${context.running}" />
+				<isfalse value="${context.stopped}" />
+			</and>
+		</condition>
+		<condition property="context.deployable">
+			<or>
+				<istrue value="${context.notInstalled}" />
+				<and>
+					<istrue value="${context.running}" />
+					<istrue value="${mgr.update}" />
+				</and>
+				<and>
+					<istrue value="${context.stopped}" />
+					<istrue value="${mgr.update}" />
+				</and>
+			</or>
+		</condition>
+		<condition property="context.undeployable">
+			<or>
+				<istrue value="${context.running}" />
+				<istrue value="${context.stopped}" />
+			</or>
+		</condition>
+
+		<echo message="context.running:${context.running}" />
+		<echo message="context.stopped:${context.stopped}" />
+		<echo message="context.notInstalled:${context.notInstalled}" />
+		<echo message="context.deployable:${context.deployable}" />
+		<echo message="context.undeployable:${context.undeployable}" />
+	</target>
+
+	<!-- 配置管理TOMCAT应用的ANT任务  -->
+	<taskdef name="deploy" classname="org.apache.catalina.ant.DeployTask">
+		<classpath>
+			<path location="${build.lib.dir}/catalina-ant.jar" />
+		</classpath>
+	</taskdef>
+	<taskdef name="start" classname="org.apache.catalina.ant.StartTask">
+		<classpath>
+			<path location="${build.lib.dir}/catalina-ant.jar" />
+		</classpath>
+	</taskdef>
+	<taskdef name="stop" classname="org.apache.catalina.ant.StopTask">
+		<classpath>
+			<path location="${build.lib.dir}/catalina-ant.jar" />
+		</classpath>
+	</taskdef>
+	<taskdef name="undeploy" classname="org.apache.catalina.ant.UndeployTask">
+		<classpath>
+			<path location="${build.lib.dir}/catalina-ant.jar" />
+		</classpath>
+	</taskdef>
+	<taskdef name="list" classname="org.apache.catalina.ant.ListTask">
+		<classpath>
+			<path location="${build.lib.dir}/catalina-ant.jar" />
+		</classpath>
+	</taskdef>
+</project>

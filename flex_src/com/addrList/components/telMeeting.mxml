@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" creationComplete="init()">
+<mx:Script>
+	<![CDATA[
+		import com.esri.solutions.flexviewer.SiteContainer;
+		import mx.controls.Alert;
+		import mx.managers.PopUpManager;
+		import mx.collections.ArrayCollection;
+		[Bindable]
+		public var confID:String="";
+		[Bindable]
+		public var telArrc:ArrayCollection = new ArrayCollection;
+		
+		private function init():void
+		{
+			SiteContainer.addEventListener(CommonEvent.VOICE_TOPIC,popUpVoiceRegisterHandler);// 监听 弹出创建多人会议topic之前的注册事件
+      		SiteContainer.addEventListener(CommonEvent.VOICE_TOPIC_REGISTERED,popUpVoiceMeetingHandler); 
+		}
+		//////////////多人会议
+		private function popUpVoiceTopic():void{
+		var loginStatus:String = ExternalInterface.call("loginStatusHandler");
+		if(loginStatus == "unLogin"){
+			var voiceLoginWin:voiceLogin = new voiceLogin();
+			voiceLoginWin.x=this.parentApplication.width/3;
+			voiceLoginWin.y=this.parentApplication.height/3;
+			voiceLoginWin.voiceMark="Meeting";
+			PopUpManager.addPopUp(voiceLoginWin, this, true);
+		}
+		else{
+			var event:CommonEvent=new CommonEvent("");
+			popUpVoiceMeetingHandler(event);
+		}
+	}
+	public function popUpVoiceMeetingHandler(evt:CommonEvent):void{
+		var voiceTopicWin:voiceMeetingTopic = new voiceMeetingTopic();
+		voiceTopicWin.x=this.parentApplication.width/3;
+		voiceTopicWin.y=this.parentApplication.height/3;
+		PopUpManager.addPopUp(voiceTopicWin, this, true);
+	}
+	public function popUpVoiceRegisterHandler(event:CommonEvent):void{
+//		var voiceMeetingWin:voiceMeeting = new voiceMeeting();
+		confID=event.data.toString();
+//		voiceMeetingWin.x=this.parentApplication.width/3;
+//		voiceMeetingWin.y=this.parentApplication.height/3;
+//		msgArrc.refresh();
+//		voiceMeetingWin.voiceArrc=msgArrc;
+//		PopUpManager.addPopUp(voiceMeetingWin, this, false);
+	} 	
+	private function joinVoiceMeetingHandler():void{
+				var numArrc:Array = new Array;
+				var statusArrc:Array = new Array;
+				for each(var obj:Object in telArrc){
+					if(obj.CONTACTOR_MOBILE!=null){
+						numArrc.push(obj.CONTACTOR_MOBILE);	
+					}
+					else{
+						numArrc.push(obj.CONTACTOR_TEL);	
+					}
+					statusArrc.push(0);
+				}
+				var joinStatus:Boolean = ExternalInterface.call("onjoinConf", confID,numArrc,statusArrc);
+				if(joinStatus){
+					Alert.show("成功了");
+				}
+				else{
+					Alert.show("失败了");
+				}
+			}
+	]]>
+</mx:Script>
+	<mx:VBox width="100%" height="100%">
+	<mx:HBox>
+		<mx:Button label="创建主题" useHandCursor="true" buttonMode="true" height="25" width="85" fontSize="12" click="popUpVoiceTopic();"/>
+		<mx:Button label="邀请加入会议" click="joinVoiceMeetingHandler();"/>
+	</mx:HBox>
+	<mx:DataGrid dataProvider="{telArrc}" width="100%" height="90%" horizontalScrollPolicy="off">
+		<mx:columns>
+			<mx:DataGridColumn dataField="NAME_C" headerText=" 姓名"/>
+			<mx:DataGridColumn dataField="CONTACTOR_MOBILE" headerText="手机"/>
+			<mx:DataGridColumn dataField="CONTACTOR_TEL" headerText="固定电话"/>
+		</mx:columns>
+	</mx:DataGrid>
+	</mx:VBox>
+</mx:Canvas>

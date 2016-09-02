@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" creationComplete="init();" visible="false">
+	<mx:Metadata>
+		[Event(name="addrGroupsLoaded")]
+	</mx:Metadata>
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			private var rawXML:XML = new XML;
+			
+			private function init():void
+			{
+				var realmId:String=ExternalInterface.call("toGetRealmId");
+		      	if(realmId==null){
+		      		realmId = '101';
+		      	}
+				addressListRO.getAddrListGroups(realmId);
+			}
+			private function getAddrListGroups_resultHandler(event:ResultEvent):void
+			{
+				rawXML = XML(event.result);
+				var e:Event = new Event("addrGroupsLoaded");
+				this.dispatchEvent(e);
+			}
+			private function faultHandler(event:FaultEvent):void
+			{
+				Alert.show(event.fault.faultString);
+			}
+			
+			public function getRawXMLList():XMLList
+			{
+				return rawXML.groups;
+			}
+//			public function getSucTypeObjectArray():Array
+//			{
+//				var arr:Array=new Array();
+//				for (var i:int=0; i < rawArrc.length; i++)
+//				{
+//					var groupId:String=rawArrc.getItemAt(i).GROUP_ID;
+//					var groupType:String=rawArrc.getItemAt(i).GROUP_TYPE;
+//					var groupName:String=rawArrc.getItemAt(i).CONTACTS_NAME;
+//					var obj:Object={"label":groupName, "type":groupType,"id":groupId};
+//					arr.push(obj);
+//				}
+//				return arr;
+//			}
+		]]>
+	</mx:Script>
+	<mx:RemoteObject id="addressListRO"
+					 destination="addressListRO"
+					 fault="faultHandler(event)">
+		<mx:method name="getAddrListGroups"
+				   result="getAddrListGroups_resultHandler(event)"/>
+	</mx:RemoteObject>
+</mx:Canvas>

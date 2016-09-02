@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" horizontalScrollPolicy="off" verticalScrollPolicy="off">
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			[Bindable]
+			public var nameC:String;
+
+			internal function addCart():void
+			{
+				if(data.@state=="checked")
+				{
+					data.@state="unchecked";
+				}
+				else
+				{
+					data.@state="checked";
+				}
+				this.dispatchEvent(new CommonAddrPeopleEvents(data,true));
+			}
+			public function findPeopleInfos(event:MouseEvent):void{
+//				if(data.@state=="checked")
+//				{
+//				}
+//				else
+//				{
+//				}
+				this.parentDocument.findPeopleInfos(data);
+			}
+		]]>
+	</mx:Script>
+	<mx:HBox horizontalScrollPolicy="off" verticalScrollPolicy="off" horizontalGap="2">
+		<mx:CheckBox id="cart_check"
+				 x="19"
+				 y="0"
+				 selected="{data.@state=='checked'}"
+				 change="addCart()"
+				 />
+		<mx:LinkButton label="{nameC}" toolTip="{nameC}" useHandCursor="true" buttonMode="true" click="findPeopleInfos(event)"/>
+	</mx:HBox>
+</mx:Canvas>
+

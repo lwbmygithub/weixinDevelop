@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel title="{'各月份' + fieldName +'统计图表'}" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns="*" creationComplete="init()" width="600" height="500" fontSize="13"
+	borderColor="#cccccc" borderAlpha="0.9" textAlign="center">
+	<!--选择事故统计月对比类列时，可饼状图和柱状图展示该类事故各月份所占比例-->
+	<mx:Script>
+		<![CDATA[
+			import com.reports.emergencyEventReports.components.LegendFontStyle;
+			import mx.rpc.events.ResultEvent;
+			import mx.controls.Alert;
+			import mx.rpc.events.FaultEvent;
+			import mx.charts.series.ColumnSeries;
+			import mx.charts.CategoryAxis;
+			import mx.managers.PopUpManager;
+			import mx.collections.ArrayCollection;
+		
+			[Bindable]
+			public var typeByRealm:ArrayCollection;
+			[Bindable]
+			public var fieldName:String;
+			[Bindable]
+			public var monthArrc:ArrayCollection;
+			[Bindable]
+			public var lossTypeName:String;
+			[Bindable]
+			public var eventsByTypeBar:ArrayCollection;
+			[Bindable]
+			public var eventsByTypePie:ArrayCollection = new ArrayCollection;
+			[Bindable]
+			public var listData:ArrayCollection= new ArrayCollection;
+			
+			private function init():void
+			{
+				eventsByTypeBar = parentApplication.eventCountArrc;
+				
+				var horAxisP:CategoryAxis = new CategoryAxis();
+        		horAxisP.categoryField = "P_MONTH";
+        		colChartID.horizontalAxis = horAxisP;
+        		var arrayFiel:Array = new Array();
+    			var yFielName:String = lossTypeName;
+    			var columnSer:ColumnSeries = new ColumnSeries;
+	        	columnSer.xField = "P_MONTH";//
+	        	columnSer.yField = yFielName;
+        		columnSer.displayName = fieldName;		
+        		arrayFiel[0] = columnSer;
+	        	trace(arrayFiel);
+		        colChartID.series=arrayFiel;
+		        
+		        initPieChart();
+			}
+			private function initPieChart():void
+			{
+				for each(var monthItem:Object in monthArrc)
+				{
+					var pieObj:Object = new Object();
+					pieObj.P_MONTH = monthItem.P_MONTH;
+					for each(var lossItem:Object in parentApplication.eventCountArrc)
+					{
+						if(monthItem.P_MONTH == lossItem.P_MONTH){
+							pieObj.COUNT_NUM = lossItem[lossTypeName];
+							break;
+						}
+					}
+					eventsByTypePie.addItem(pieObj);
+				}
+			
+			}
+			private function displayGold(data:Object, field:String, index:Number, percentValue:Number):String {
+				if(data.COUNT_NUM!=0)
+				{
+	            var temp:String= (" " + percentValue).substr(0,6);
+	            var obj:Object = new Object();
+	            obj.P_MONTH = data.P_MONTH;
+	            obj.countNum = data.COUNT_NUM;
+	            obj.percent = temp+'%';
+	            if(!isContain(listData,obj))
+	            {
+	            	listData.addItem(obj);
+	            }
+	            return data.P_MONTH + ": " + '\n' + "Total: " + data.COUNT_NUM + '\n' + temp + "%";
+	   			}
+	   			return "";
+       		}
+       		private function isContain(listData:ArrayCollection,obj:Object):Boolean
+       		{
+       			for each (var item:Object in listData)
+       			{
+       				if(item.P_MONTH == obj.P_MONTH)
+       				{
+       					return true;
+       				}
+       			}
+       			return false;
+       		}
+			internal function doBack():void {
+            	PopUpManager.removePopUp(this);    
+            }
+            private function toPrint():void{
+				if(toggle.selectedIndex==0)
+				{
+					this.parentApplication.doPrint(barChart);
+				}
+				else if(toggle.selectedIndex==1)
+				{
+					this.parentApplication.doPrint(chartBox);
+				}
+				else if(toggle.selectedIndex==2)
+				{
+					this.parentApplication.doPrint(danymDataGrid);
+				}
+			}
+		]]>
+	</mx:Script>
+	<mx:ViewStack id="vs" width="100%" height="100%" creationPolicy="all" >
+	   <mx:VBox id="barChart" icon="@Embed('icon_chart.png')" width="100%" height="90%" toolTip="柱状图">
+			<mx:ColumnChart id="colChartID" dataProvider="{eventsByTypeBar}" width="98%" showDataTips="true" height="98%" styleName="ChineseFont"/>
+			<mx:Legend dataProvider="{colChartID}" width="98%" direction="horizontal" enabled="true" legendItemClass="{com.reports.emergencyEventReports.components.LegendFontStyle}"/>
+		</mx:VBox>
+	   <mx:VBox id="chartBox" width="100%" height="100%" icon="@Embed('icon_chart.png')" toolTip="圆饼图" hideEffect="Fade" showEffect="Fade">
+			<mx:PieChart id="chart" 
+            height="100%" 
+            width="100%"
+            paddingRight="5" 
+            paddingLeft="5" 
+            showDataTips="true" 
+            dataProvider="{eventsByTypePie}"
+        	> 
+            <mx:series>
+                <mx:PieSeries  labelPosition="callout"
+                    nameField="P_MONTH"
+                    field="COUNT_NUM" 
+                    labelFunction="displayGold" styleName="ChineseFont"
+                >
+                    <mx:filters>
+                        <mx:Array/>
+                    </mx:filters>
+                </mx:PieSeries>
+            </mx:series>
+        </mx:PieChart>  
+        <mx:Legend dataProvider="{chart}" direction="horizontal" enabled="true"  width="98%" legendItemClass="{com.reports.emergencyEventReports.components.LegendFontStyle}"/>
+	   </mx:VBox> 
+	   <mx:VBox id="danymDataGrid" icon="@Embed('icon_grid.png')" width="100%" height="90%" toolTip="查看列表">
+		<mx:DataGrid id="eventCountId" width="100%" height="100%"  dataProvider="{listData}">
+			<mx:columns>
+                <mx:DataGridColumn dataField="P_MONTH" headerText="月份"/>
+                <mx:DataGridColumn dataField="countNum" headerText="数量"/>
+                <mx:DataGridColumn dataField="percent" headerText="百分比"/>
+            </mx:columns>
+		</mx:DataGrid>
+	   </mx:VBox>
+	</mx:ViewStack>
+	<mx:ControlBar>
+    <mx:ToggleButtonBar dataProvider="{vs}" id="toggle"/>
+    <mx:Button label="打印" click="toPrint()" height="22"/>
+    <mx:Button visible="{toggle.selectedIndex==2}" label="导出EXCEL" click="this.parentApplication.loadExcel(eventCountId);" height="22"/>
+	<mx:Spacer width="50"/>
+    <mx:Button label="关闭" click="doBack();" height="22"/>
+	</mx:ControlBar>
+</mx:Panel>

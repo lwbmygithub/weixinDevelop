@@ -1,0 +1,633 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%"
+	xmlns:MobileNum="com.addrList.components.*"
+	xmlns:ilog="http://www.ilog.com/2007/ilog/flex"
+	xmlns:m="com.sunwah.designLayout.managers.*"
+	xmlns:local="*" creationComplete="init()" horizontalScrollPolicy="off"
+	xmlns:deptCbx="com.addrList.checkBox.*" >
+	<mx:RemoteObject id="addressListRO" destination="addressListRO">
+	</mx:RemoteObject>
+	<mx:Script>
+    <![CDATA[
+    	import com.addrList.checkBox.CommonAddrPeopleEvents;
+    	import flash.net.navigateToURL;
+    	import com.sunwah.designLayout.views.addressList.MsgDetailPopupWins;
+    	import mx.collections.HierarchicalData;
+    	import com.esri.solutions.flexviewer.AppEvent;
+    	import mx.utils.StringUtil;
+    	import com.esri.solutions.flexviewer.widgets.AboutWidget;
+    	import mx.core.Application;
+    	import com.addrList.components.faxes.faxesWin;
+    	import com.esri.solutions.flexviewer.SiteContainer;
+    	import mx.controls.Label;
+    	import mx.printing.FlexPrintJob;
+    	import mx.managers.PopUpManager; 
+    	import controls.ilog.components.PrintDialog;
+    	import mx.events.ListEvent;
+    	import mx.collections.ArrayCollection;
+    	import mx.collections.XMLListCollection;
+    	import mx.rpc.events.ResultEvent;
+    	import mx.rpc.events.FaultEvent;
+    	import mx.controls.Alert;
+      	import mx.events.ItemClickEvent;
+      	import mx.utils.URLUtil;
+      	
+      
+      	private var port:int;
+       	private var serverName:String;
+        [Bindable]
+        private var serverUrl:String; 
+        [Bindable]     
+      	public var voiceSelArr:Array = new Array();
+		[Bindable]
+		public var groupDeptSelectedData:XMLListCollection = new XMLListCollection();
+		[Bindable]
+		public var groupSelectedData:XMLListCollection = new XMLListCollection();
+		[Bindable]
+		public var curGroupData:XMLList = new XMLList();
+		private var isFilter:Boolean=false;
+		
+   private function init():void{
+//	   	SiteContainer.addEventListener(AppEvent.ADLI_DEPT_BY_REALM_CHKB,contactCbxHandler);
+	   	this.addEventListener("commonAddrPeoplePoint",comAddrPeoCheckBoxHandler);	
+	  	getFullUrladd();
+   }
+   private function comAddrPeoCheckBoxHandler(event:CommonAddrPeopleEvents):void
+   {
+   		var selectedContac:Object=event.checkBoxEvePoints as Object;
+		var state:Boolean = selectedContac.@state=="checked"?true:false;
+		getSendList(selectedContac.@state,selectedContac.@groupId,selectedContac.@id,selectedContac.@marked,new XML(selectedContac));
+   }
+//    private function contactCbxHandler(event:AppEvent):void
+//    {
+//    	var selectedContac:Object=event.data as Object;
+//		var state:Boolean = selectedContac.@state=="checked"?true:false;
+//		getSendList(selectedContac.@state,selectedContac.@groupId,selectedContac.@id,selectedContac.@marked,new XML(selectedContac));
+//    }
+   private function getSendList(state:String,group_id:String,id:String,marked:String,content:XML):void
+	 {
+	 	if(state == "checked"){
+			groupSelectedData.addItem(content);
+		}
+		else if(state == "unchecked"){
+			for(var i:int=0;i<groupSelectedData.length;i++){
+				if(groupSelectedData.getItemAt(i).@id==id && groupSelectedData.getItemAt(i).@groupId==group_id && groupSelectedData.getItemAt(i).@marked==marked){
+					groupSelectedData.removeItemAt(i);
+					break;
+				}
+			}
+		}
+		if(isFilter){
+			if(exVS.selectedIndex ==0)
+		 		{
+		 			for each(var itemVal:XML in curGroupData.people)
+			 		{
+			 			if(itemVal.@id==id && itemVal.@groupId==group_id && itemVal.@marked == marked)
+			 			{
+			 				itemVal.@state=state;
+			 				break;
+			 			}
+			 		}
+		 		}
+		 		else{	
+		 			for each(var itemVal1:XML in curGroupData.dept)
+			 		{
+			 			if(itemVal1.@id==id && itemVal1.@groupId==group_id  && itemVal1.@marked == marked)
+			 			{
+			 				itemVal1.@state=state;
+			 			}
+			 		}
+		 		}			
+		}
+	 }
+	 private function readyToSend():void{
+	 	if(groupSelectedData.length>0)
+	 	{
+			sendMsgList(groupSelectedData);
+	 	}
+	 	else
+		{
+			Alert.show("请选择需要发送短信的人员信息。");
+		}
+	}
+	private function sendMsgList(data:XMLListCollection):void{
+		var sendPeopleArrc:ArrayCollection = new ArrayCollection();
+		for each(var itemXmlList:XML in data)
+			{
+				var name:String = itemXmlList.@name;
+				var cell:String = itemXmlList.@cell;
+				var obj:Object = {"name":name,"cell":cell};
+				sendPeopleArrc.addItem(obj);
+			}
+		sendConfirmWin(sendPeopleArrc);
+	}
+	private function sendConfirmWin(sendArrc:ArrayCollection):void{
+		var msgDetailsWin:MsgDetailPopupWins = new MsgDetailPopupWins();
+		msgDetailsWin.exMsgArrc = sendArrc;
+		msgDetailsWin.sourceFrom = 6;//sourceFrom为字典，6为日常联络
+		PopUpManager.addPopUp(msgDetailsWin,this,true);
+		PopUpManager.centerPopUp(msgDetailsWin);
+	}
+  //获取当前url路径
+  	private function getFullUrladd():void
+	{
+		var url:String = Application.application.url;
+		port = URLUtil.getPort(url);
+        serverName = URLUtil.getServerName(url);
+        serverUrl='http://'+serverName+':'+port+'/gz_security/ExcelExport.jsp';        
+	}
+      
+	/*******通用通讯录组*******/
+	private function publicGroupLoadedHandler():void
+	{
+		groupTree.dataProvider = publicGroup.getRawXMLList();
+	} 
+//	private function lstGroupChangeHandler(event:ListEvent):void
+//	{
+//		var dataObj:Object=event.itemRenderer.data as Object;
+//		var obj:Object={group_id:dataObj.id,group_type:dataObj.type};
+//		groupSelectHandler(obj);
+//	}
+	private function treeChanged(event:Event):void {
+        var selectedNode:XML=Tree(event.target).selectedItem as XML;
+        if(selectedNode.hasOwnProperty("@isBranch") && selectedNode.@isBranch == "false"){
+        var obj:Object={'group_id':String(selectedNode.@groupId),'group_type':String(selectedNode.@groupType)};
+        groupSelectHandler(obj);
+        }
+    }
+
+	private function groupSelectHandler(obj:Object):void
+	{
+		var selectedGroup:Object=obj;
+		var group_id:String=selectedGroup.group_id;
+		var xmlList:XMLList=addGroupMgr.getGroupsById(group_id);
+		curGroupData = xmlList;
+		if(selectedGroup.group_type=='deptGroup')//group_type为deptGroup表示这是部门通讯录
+		{
+			exVS.selectedIndex = 1;
+			xmlListCommon.source = curGroupData.dept;
+			if(xmlListCommon.length>0)
+			{
+				deptADG.dataProvider = new HierarchicalData(new XMLListCollection(xmlList));
+			}
+			else
+			{
+				deptADG.dataProvider = null;
+			}
+		}
+		else//group_type为peopleGroup表示这是部门人员通讯录
+		{
+			exVS.selectedIndex = 0;
+			xmlListCommon.source = curGroupData.people;
+			if(xmlListCommon.length>0)
+			{
+				contactADG.dataProvider = new HierarchicalData(new XMLListCollection(xmlList));
+			}
+			else
+			{
+				contactADG.dataProvider = null;
+			}
+		}
+		if(StringUtil.trim(search.text).length>0){//主动过滤
+			xmlListCommon.refresh();
+		}		
+	}
+	private function selectAllHandler():void
+	{
+	 	if(curGroupData.length()>0)
+	 	{
+	 		if(selectAll.selected)
+	 		{
+		 		if(exVS.selectedIndex ==0)
+		 		{
+		 			if(isFilter)
+		 			{
+			 			for each(var xmlVal:XML in xmlListCommon)
+			 			{
+				 			for each(var itemVal:XML in curGroupData.people)
+					 		{
+					 			if(xmlVal.@id == itemVal.@id && xmlVal.@groupId == itemVal.@groupId && xmlVal.@marked == itemVal.@marked && itemVal.@state=="unchecked")
+					 			{
+					 				groupSelectedData.addItem(itemVal.copy());
+					 				itemVal.@state="checked";
+					 				break;
+					 			}
+					 		}
+				 		}
+			 		}
+			 		else
+			 		{
+			 			for each(var itemsVal:XML in curGroupData.people)
+				 		{
+				 			if(itemsVal.@state=="unchecked")
+				 			{
+				 				groupSelectedData.addItem(itemsVal.copy());
+				 				itemsVal.@state="checked";
+				 			}
+				 		}
+			 		}
+		 		}
+		 		else{	
+		 			if(isFilter)
+		 			{
+			 			for each(var xmlVal1:XML in xmlListCommon)
+			 			{
+				 			for each(var itemVal1:XML in curGroupData.dept)
+					 		{
+					 			if(xmlVal1.@id == itemVal1.@id && xmlVal1.@groupId == itemVal1.@groupId && xmlVal1.@marked == itemVal1.@marked && itemVal1.@state=="unchecked")
+					 			{
+					 				groupSelectedData.addItem(itemVal1.copy());
+					 				itemVal1.@state="checked";
+					 				break;
+					 			}
+					 		}
+				 		}
+			 		}
+			 		else
+			 		{
+			 			for each(var itemsVal1:XML in curGroupData.dept)
+				 		{
+				 			if(itemsVal1.@state=="unchecked")
+				 			{
+				 				groupSelectedData.addItem(itemsVal1.copy());
+				 				itemsVal1.@state="checked";
+				 			}
+				 		}
+			 		}
+		 		}
+	 		}
+	 		else
+	 		{
+	 			if(exVS.selectedIndex ==0)
+		 		{
+		 			if(isFilter)
+		 			{
+			 			for each(var xmlVal2:XML in xmlListCommon)
+			 			{
+				 			for each(var itemVal2:XML in curGroupData.people)
+					 		{
+					 			if(xmlVal2.@id == itemVal2.@id && xmlVal2.@groupId == itemVal2.@groupId && xmlVal2.@marked == itemVal2.@marked && itemVal2.@state=="checked")
+					 			{
+					 				removeData(itemVal2.@id,itemVal2.@groupId,itemVal2.@marked);
+					 				itemVal2.@state="unchecked";
+					 				break;
+					 			}
+					 		}
+				 		}
+			 		}
+			 		else
+			 		{
+			 			for each(var itemsVal2:XML in curGroupData.people)
+				 		{
+				 			if(itemsVal2.@state=="checked")
+				 			{
+				 				removeData(itemsVal2.@id,itemsVal2.@groupId,itemsVal2.@marked);
+				 				itemsVal2.@state="unchecked";
+				 			}
+				 		}
+			 		}
+		 		}
+		 		else{	
+		 			if(isFilter)
+		 			{
+			 			for each(var xmlVal3:XML in xmlListCommon)
+			 			{
+				 			for each(var itemVal3:XML in curGroupData.dept)
+					 		{
+					 			if(xmlVal3.@id == itemVal3.@id && xmlVal3.@groupId == itemVal3.@groupId && xmlVal3.@marked == itemVal3.@marked && itemVal3.@state=="checked")
+					 			{
+					 				removeData(itemVal3.@id,itemVal3.@groupId,'');
+					 				itemVal3.@state="unchecked";
+					 				break;
+					 			}
+					 		}
+				 		}
+			 		}
+			 		else
+			 		{
+			 			for each(var itemsVal3:XML in curGroupData.dept)
+				 		{
+				 			if(itemsVal3.@state=="checked")
+				 			{
+				 				removeData(itemsVal3.@id,itemsVal3.@groupId,'');
+				 				itemsVal3.@state="unchecked";
+				 			}
+				 		}
+			 		}
+		 		}
+	 		}
+	 	}else
+	 	{
+	 		Alert.show("当前没有可选项");
+	 	}
+	}
+	private function removeData(id:String,groupId:String,marked:String):void
+	{
+		for(var i:int=0;i<groupSelectedData.length;i++){
+			if(groupSelectedData.getItemAt(i).@id==id && groupSelectedData.getItemAt(i).@groupId==groupId && groupSelectedData.getItemAt(i).@marked==marked){
+				groupSelectedData.removeItemAt(i);
+				break;
+			}
+		}
+	}
+	
+	private function filterDeptOrName(item:Object):Boolean {
+		var node:XML=XML(item);
+		var searchText:String=StringUtil.trim(search.text);
+		var result:Boolean=false;
+		if(node.@isBranch=="false"){
+			if(node.hasOwnProperty("@name")){
+				result||=node.@name.match(new RegExp(searchText, "i"));
+			} 
+			if(node.hasOwnProperty("@deptname")){
+				result||=node.@deptname.match(new RegExp(searchText, "i"));
+			} 
+		}
+		return result;
+	} 
+	private function searchInfos():void{
+		if(search !=null && curGroupData!=null && StringUtil.trim(search.text).length>0){
+			if(curGroupData.length() > 0 ){
+				if(xmlListCommon.length>0)
+				{
+					var temStr:String = curGroupData[0].toString();
+					temStr = temStr.substring(0,temStr.indexOf(">")+1);
+					temStr = temStr + xmlListCommon.toXMLString() + "</group>";
+					if(exVS.selectedIndex == 1)
+					{
+						deptADG.dataProvider=new HierarchicalData(new XMLListCollection(new XMLList(temStr)));
+						deptADG.displayItemsExpanded = true;
+					}
+					else if(exVS.selectedIndex == 0)
+					{
+						contactADG.dataProvider=new HierarchicalData(new XMLListCollection(new XMLList(temStr)));
+						contactADG.displayItemsExpanded = true;
+					}
+					isFilter=true;
+				}
+				else
+				{
+					if(exVS.selectedIndex == 1)
+					{
+						deptADG.dataProvider=null;
+					}
+					else if(exVS.selectedIndex == 0)
+					{
+						contactADG.dataProvider=null;
+					}
+					isFilter=false;
+				}
+			}
+		}
+		else
+		{
+			if(curGroupData!=null && curGroupData.length() > 0)
+			{
+				if(exVS.selectedIndex == 1)
+				{deptADG.dataProvider=new HierarchicalData(curGroupData);}
+				else{contactADG.dataProvider=new HierarchicalData(curGroupData);}
+			}
+			else if(contactADG!=null && deptADG != null)
+			{
+				if(exVS.selectedIndex == 1)
+				{deptADG.dataProvider=null;}
+				else{contactADG.dataProvider=null;}
+			}
+			isFilter=false;
+		}
+	}
+	//多人传真
+	private function popUpFaxWin():void{
+		var loginStatus:String = ExternalInterface.call("loginStatusHandler");
+		if(loginStatus == "unLogin"){
+			var voiceLoginWin:voiceLogin = new voiceLogin();
+			voiceLoginWin.x=this.parentApplication.width/3;
+			voiceLoginWin.y=this.parentApplication.height/5;
+			voiceLoginWin.voiceMark="Faxes";
+			PopUpManager.addPopUp(voiceLoginWin, this, true);
+		}
+		else{
+			var event:CommonEvent=new CommonEvent("");
+			popUpFaxHandler(event);
+		}
+	}
+	public function popUpFaxHandler(evt:CommonEvent):void{
+		var msgArrc:ArrayCollection = new ArrayCollection;
+		for each(var tem:XML in groupSelectedData)
+		{
+			var obj:Object={"NAME_C":tem.@name,"FAX_NUMBER":tem.@fax,"CONTACTOR_MOBILE":tem.@cell,"CONTACTOR_TEL":tem.@tel};
+			msgArrc.addItem(obj);
+		}
+		var faxWin:faxesWin = new faxesWin();
+		faxWin.x=this.parentApplication.width/3;
+		faxWin.y=this.parentApplication.height/5;
+		faxWin.faxArrc=msgArrc;
+		PopUpManager.addPopUp(faxWin, this, false);
+	}
+	//发邮件
+	public function sendMail():void {
+		var str:String = "mailto:";
+		for each(var tem:XML in groupSelectedData)
+		{
+			if(tem.hasOwnProperty("@eMail") && String(tem.@eMail).length>0)
+			{
+				str = str + tem.@eMail +";";
+			}
+		}
+		var closeSucUrl:URLRequest=new URLRequest(str);
+	    navigateToURL(closeSucUrl,"_self");
+	}
+	public function clickHandler():void
+	{
+		var detailInfo:String;
+		var objXml:XML = contactADG.selectedItem as XML;
+		if(objXml.hasOwnProperty("@detailLink") && String(objXml.@detailLink).length>0 )
+		{
+			var layer:String = ExternalInterface.call("getFolderLayer");
+			navigateToURL(new URLRequest(layer + objXml.@detailLink),"_self");
+		}
+		
+	}	
+	public function findPeopleInfos(obj:Object):void
+	{
+//		var obj:Object = contactADG.selectedItem;
+		if(obj.hasOwnProperty("@detailLink") && String(obj.@detailLink).length>0 )
+		{
+			var layer:String = ExternalInterface.call("getFolderLayer");
+			navigateToURL(new URLRequest(layer + obj.@detailLink),"_blank");
+		}
+		
+	}	
+    ]]>
+  </mx:Script>
+    <mx:XMLListCollection id="xmlListCommon" filterFunction="filterDeptOrName" collectionChange="searchInfos()" />
+	<mx:HDividedBox horizontalGap="2" width="100%" height="100%" creationPolicy="all">
+		<mx:VBox width="20%" height="100%" verticalGap="10" backgroundColor="white">
+		<mx:Label text="通用通讯录组:"
+				  styleName="WidgetText"/>
+				  <!--
+		<mx:List id="lstGroup"
+				 width="98%"
+				 height="100%" paddingLeft="25"
+				 change="lstGroupChangeHandler(event);"/>-->
+		<mx:Tree id="groupTree" width="98%" height="100%" labelField="@name"
+                showRoot="false" change="treeChanged(event)"/>
+ 		</mx:VBox>
+		
+		<mx:VBox id="exClassfiedByExpertType" width="76%" height="100%" backgroundColor="white" creationPolicy="all">
+			<mx:ControlBar paddingTop="0" paddingBottom="0">
+	 			<mx:Label text="部门/姓名：" />
+				<mx:TextInput text="" id="search" width="120"  backgroundColor="0xffffff" color="0x000000" change="xmlListCommon.refresh();"/>
+	 		</mx:ControlBar>
+			<mx:ViewStack id="exVS" width="100%" height="100%" creationPolicy="all">
+				<mx:VBox label="人员列表" width="100%" height="100%">
+					<mx:AdvancedDataGrid id="contactADG"
+						 width="99%" height="100%"
+						 defaultLeafIcon="undefined"
+						 displayItemsExpanded="true"
+						 sortExpertMode="true" sortableColumns="false"
+						 >
+						<mx:columns>
+							<mx:AdvancedDataGridColumn dataField="@name" headerText="姓名">
+							<mx:itemRenderer>
+								<mx:Component>
+									<deptCbx:CommonAddrPeopleCheckBox nameC="{data.@name}" />
+								</mx:Component>
+							</mx:itemRenderer>	
+							</mx:AdvancedDataGridColumn>
+							<mx:AdvancedDataGridColumn dataField="@peopleType" headerText="人员类型"/>
+							<mx:AdvancedDataGridColumn dataField="@deptname" headerText="部门"/>
+							<mx:AdvancedDataGridColumn dataField="@post" headerText="职位"/>
+							<mx:AdvancedDataGridColumn dataField="@groupPost" headerText="组内职位"/>
+							<mx:AdvancedDataGridColumn dataField="@tel" headerText="联系电话">
+							<mx:itemRenderer>
+								<mx:Component>
+									<MobileNum:voiceCallSoftPhone  mobileNum="{data.@tel}"/>
+								</mx:Component>
+							</mx:itemRenderer> 	
+							</mx:AdvancedDataGridColumn>
+							<mx:AdvancedDataGridColumn headerText="手机">
+							<mx:itemRenderer>
+								<mx:Component>
+									<MobileNum:voiceCallSoftPhone  mobileNum="{data.@cell}"/>
+								</mx:Component>
+							</mx:itemRenderer> 
+							</mx:AdvancedDataGridColumn>
+							<mx:AdvancedDataGridColumn dataField="@eMail" headerText="邮箱"/>
+							<mx:AdvancedDataGridColumn dataField="@fax" headerText="传真"/>
+							
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+					</mx:VBox>
+					<mx:VBox label="部门列表" width="100%" height="100%">
+					<mx:AdvancedDataGrid id="deptADG"
+						width="99%" height="100%"
+						sortExpertMode="true" sortableColumns="false"
+						defaultLeafIcon="undefined"
+						displayItemsExpanded="true"
+						>
+						<mx:columns>
+							<mx:AdvancedDataGridColumn dataField="@name" headerText="部门">
+								<mx:itemRenderer>
+								<mx:Component>
+									<deptCbx:CommonAddrPeopleCheckBox nameC="{data.@name}" />
+								</mx:Component>
+								</mx:itemRenderer>
+							</mx:AdvancedDataGridColumn>
+							<mx:AdvancedDataGridColumn dataField="@tel" headerText="联系电话">
+							<mx:itemRenderer>
+								<mx:Component>
+									<MobileNum:voiceCallSoftPhone  mobileNum="{data.@tel}"/>
+								</mx:Component>
+							</mx:itemRenderer> 	
+							</mx:AdvancedDataGridColumn>
+							<mx:AdvancedDataGridColumn headerText="手机">
+							<mx:itemRenderer>
+								<mx:Component>
+									<MobileNum:voiceCallSoftPhone  mobileNum="{data.@cell}"/>
+								</mx:Component>
+							</mx:itemRenderer> 
+							</mx:AdvancedDataGridColumn>
+							<mx:AdvancedDataGridColumn dataField="@complainCell" headerText="投诉电话"/>
+							<mx:AdvancedDataGridColumn dataField="@fax" headerText="传真"/>
+						</mx:columns>
+					</mx:AdvancedDataGrid>
+					</mx:VBox>
+					
+					<!--
+					<mx:VBox label="短信列表" width="100%" height="100%">
+						<mx:DataGrid width="99%" height="100%" fontSize="12">
+						<mx:columns>
+							<mx:DataGridColumn dataField="NAME_C" headerText="姓名"/>
+							<mx:DataGridColumn dataField="POST_NAME" headerText="职位"/>
+							<mx:DataGridColumn dataField="CONTACTOR_TEL" headerText="联系电话">
+							<mx:itemRenderer>
+								<mx:Component>
+									<MobileNum:voiceCallSoftPhone  mobileNum="{data.CONTACTOR_TEL}"/>
+								</mx:Component>
+							</mx:itemRenderer> 	
+							</mx:DataGridColumn>
+							<mx:DataGridColumn headerText="手机">
+							<mx:itemRenderer>
+								<mx:Component>
+									<MobileNum:voiceCallSoftPhone  mobileNum="{data.CONTACTOR_MOBILE}"/>
+								</mx:Component>
+							</mx:itemRenderer> 
+							</mx:DataGridColumn>
+							<mx:DataGridColumn dataField="E_MAIL" headerText="邮箱"/>
+							<mx:DataGridColumn dataField="FAX_NUMBER" headerText="传真"/>
+							
+						</mx:columns>
+					</mx:DataGrid>
+					
+						<mx:HBox height="5%" width="99%" paddingLeft="5" horizontalAlign="left" verticalAlign="middle" horizontalGap="10">	
+						<mx:Button label="清空" useHandCursor="true" buttonMode="true" click="removeAllClick();"  height="25" fontSize="12" width="53"/>
+						<mx:Button label="发送短信" useHandCursor="true" buttonMode="true" click="msgBtnClick();"  height="25" fontSize="12" width="80"/>
+						<mx:Button label="发送邮件" useHandCursor="true" buttonMode="true" height="25" width="85" fontSize="12" click="sendMail();"/>
+						<mx:Button label="传真发送" useHandCursor="true" buttonMode="true" height="25" width="85" fontSize="12" click="popUpFaxWin();"/>
+						<mx:Button label="导出Excel" useHandCursor="true" buttonMode="true" height="25" width="95" fontSize="12" click="loadDGInExcel(msgArrcGrid,serverUrl);" />
+						<mx:PopUpButton label="选择导出项" x="10" y="494" fontSize="12">
+							<mx:popUp>			
+								<mx:VBox>
+									<mx:HBox backgroundColor="white">
+									<mx:CheckBox label="区域" selected="true" click="selectHeaderText(1);" id="popUpCheckBox1"/>
+									<mx:CheckBox label="姓名" selected="true" click="selectHeaderText(2);" id="popUpCheckBox2"/>
+									<mx:CheckBox label="部门" selected="true" click="selectHeaderText(3);" id="popUpCheckBox3"/>
+									<mx:CheckBox label="职位" selected="true" click="selectHeaderText(4);" id="popUpCheckBox4"/>
+									</mx:HBox>
+									<mx:HBox>
+									<mx:CheckBox label="联系电话" selected="true" click="selectHeaderText(5);" id="popUpCheckBox5"/>
+									<mx:CheckBox label="手机" selected="true" click="selectHeaderText(6);" id="popUpCheckBox6"/>
+									<mx:CheckBox label="邮箱" selected="true" click="selectHeaderText(7);" id="popUpCheckBox7"/>
+									<mx:CheckBox label="传真" selected="true" click="selectHeaderText(8);" id="popUpCheckBox8"/>
+									</mx:HBox>				
+								</mx:VBox>			
+							</mx:popUp>
+						</mx:PopUpButton>
+						</mx:HBox>
+				</mx:VBox>-->
+			</mx:ViewStack>
+			<mx:HBox height="5%" width="99%" paddingLeft="5" horizontalAlign="left" verticalAlign="middle" horizontalGap="10">	
+				<mx:CheckBox id="selectAll" label="全选" width="51" height="25" fontSize="12" selected="false" change="selectAllHandler();"/>
+				<mx:Button label="发送短信" useHandCursor="true" buttonMode="true" click="readyToSend();"  height="25" fontSize="12" width="80"/>
+				<mx:Button label="传真发送" useHandCursor="true" buttonMode="true" height="25" width="85" fontSize="12" click="popUpFaxWin();"/>
+				<mx:Button label="发送邮件" useHandCursor="true" buttonMode="true" height="25" width="85" fontSize="12" click="sendMail();"/>
+			</mx:HBox>
+		</mx:VBox>
+	</mx:HDividedBox>
+	<!--
+	<mx:DataGrid visible="false" dataProvider="{msgArrc}" fontSize="12" id="msgArrcGrid">
+		<mx:columns>
+			<mx:DataGridColumn dataField="REALM_NAME" headerText="区域" width="100" id="SelectHeaderText1"/>
+			<mx:DataGridColumn dataField="name" headerText="姓名" width="70" id="SelectHeaderText2"/>
+			<mx:DataGridColumn dataField="DEPT_NAME" headerText="部门" width="100" id="SelectHeaderText3"/>
+			<mx:DataGridColumn dataField="POST_NAME" headerText="职位" width="100" id="SelectHeaderText4"/>
+			<mx:DataGridColumn dataField="CONTACTOR_TEL" headerText="联系电话" width="130" id="SelectHeaderText5"/>
+			<mx:DataGridColumn dataField="cell" headerText="手机" width="130" id="SelectHeaderText6"/>
+			<mx:DataGridColumn dataField="mail" headerText="邮箱" width="170" id="SelectHeaderText7"/>
+			<mx:DataGridColumn dataField="FAX_NUMBER" headerText="传真" width="130" id="SelectHeaderText8"/>					
+		</mx:columns>
+	</mx:DataGrid>-->
+	<m:PublicAddrListGroupsManager id="publicGroup" addrGroupsLoaded="publicGroupLoadedHandler()"/>
+	<m:AddrListGroupManager id="addGroupMgr"/>
+</mx:Canvas>

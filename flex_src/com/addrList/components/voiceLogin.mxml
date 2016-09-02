@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" width="230" height="122" headerHeight="22" title="注册语音拨号电话" showCloseButton="true" close="PopUpManager.removePopUp(this);"
+	fontSize="12" cornerRadius="7" borderThicknessLeft="4" borderThicknessRight="4" alpha="1" layout="absolute" creationComplete="init();">
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+//			import com.esri.solutions.flexviewer.SiteContainer;
+			import mx.controls.Alert;
+			import mx.managers.PopUpManager;
+			[Bindable]
+			public var voiceMark:String="";
+			[Bindable]
+			public var REGISTER_FROM:String="";
+			[Bindable]
+			[Embed(source='com/addrList/assets/icons/register.png')]
+			private var loginImg:Class;
+			private function init():void{
+				ExternalInterface.addCallback("voiceLoginStatus", voiceStatusHandler);
+				registerNum.text = ExternalInterface.call("getVoiceAgentNum");
+			}
+			
+			private function voiceStatusHandler(vsh:Boolean):void{
+				if(vsh == true){
+					if(voiceMark=="Meeting"){
+						PopUpManager.removePopUp(this);
+//						SiteContainer.dispatchEvent(new CommonEvent(CommonEvent.VOICE_TOPIC,false,false,voiceMark));
+					}
+					else if(voiceMark=="Faxes"){
+						PopUpManager.removePopUp(this);
+//						SiteContainer.dispatchEvent(new CommonEvent(CommonEvent.FAX_REGISTERED,false,false,voiceMark));
+					}
+					else{
+						ExternalInterface.call("VCtrlBarStatusToPer",true);
+//						ExternalInterface.call("visbleDivHandler",'VOICE_REG_WIN_CLOSE');
+						PopUpManager.removePopUp(this);
+//						Alert.show("注册成功！！");
+						//......可以在这里加上一个REGISTER_FROM=="REGISTER_EM_RES"来标识哪个窗口该弹出注册成功提示
+					}
+				}
+				else{
+					Alert.show("注册失败！！");
+				}
+			}
+			private function registerVoice():void{				
+				if(registerNum.text!=null && registerNum.text!=''){
+					var registerResult:Boolean=ExternalInterface.call("regVoice",registerNum.text);
+					PopUpManager.removePopUp(this);
+				}
+				else {
+					registerNum.text = "请添加注册号码!";
+					registerNum.setStyle("color","#C71585");
+					registerNum.setStyle("fontSize",12);
+				}				
+			}
+			
+			
+		]]>
+	</mx:Script>
+	<mx:VBox height="100%" width="100%" verticalGap="0">
+		<mx:HBox horizontalGap="-10" paddingLeft="10" width="95%">
+			<mx:Text text="电话号码：" width="80" height="27" fontSize="15" color="#032C35" />
+			<!--<mx:TextInput id="registerNum" height="27" text="" mouseFocusEnabled="true" initialize="application.focusManager.setFocus(registerNum);" width="149" borderColor="#03395E" maxChars="13" restrict="0-9" enter="registerVoice()"/>
+				-->
+			<mx:Text id="registerNum" height="27" width="116" fontSize="15" text=""/>
+		</mx:HBox>
+		<mx:HBox horizontalAlign="right" width="90%">
+			<mx:Button label="注册" height="24" width="56" fontSize="12" borderColor="#BAB7BC" useHandCursor="true" buttonMode="true" click="registerVoice()"/>
+			<mx:Button label="取消" height="24" width="56" fontSize="12" borderColor="#BAB7BC" useHandCursor="true" buttonMode="true" click="PopUpManager.removePopUp(this);"/>
+		</mx:HBox>
+	</mx:VBox>
+</mx:TitleWindow>

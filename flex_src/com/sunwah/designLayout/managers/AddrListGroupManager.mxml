@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" creationComplete="init();" visible="false">
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			private var rawXML:XML=new XML();
+			
+			private function init():void
+			{
+				var realmId:String=ExternalInterface.call("toGetRealmId");
+				if(realmId == null)
+				{
+					realmId = "101";
+				}
+				addressListRO.findAddrListByRealm(realmId);
+			}
+			private function findAddrListByRealm_resultHandler(event:ResultEvent):void
+			{
+				rawXML = XML(event.result);
+			}
+			public function getGroupsById(group_id:String):XMLList
+			{
+				var xmlList:XMLList=rawXML.groups.group.(@groupId == group_id);
+				return xmlList;
+			}
+			
+			private function faultHandler(event:FaultEvent):void
+			{
+				Alert.show("公共通讯录列表初始化失败："+event.fault.faultString);	
+			}
+			
+			public function getRawXML():XMLList
+			{
+				var xmlList:XMLList=rawXML.groups.group;
+				return xmlList;
+			}
+		]]>
+	</mx:Script>	
+	<mx:RemoteObject id="addressListRO"
+					 destination="addressListRO"
+					 fault="faultHandler(event)">
+		<mx:method name="findAddrListByRealm"
+				   result="findAddrListByRealm_resultHandler(event)"/>
+	</mx:RemoteObject>
+</mx:Canvas>

@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" headerHeight="20" width="400" height="300"
+	showCloseButton="true" close="PopUpManager.removePopUp(this);" creationComplete="init();">
+	<mx:Script>
+		<![CDATA[
+			import mx.events.CloseEvent;
+			import mx.utils.StringUtil;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.controls.Alert;
+			import mx.collections.ArrayCollection;
+			import mx.managers.PopUpManager;
+			[Bindable]
+			public var exMsgArrc:ArrayCollection;
+			[Bindable]
+			public var exMsgSendArrc:ArrayCollection = new ArrayCollection();
+			private var eventId:Number;
+			private var userId:Number;
+			[Bindable]
+			public var mailTitle:String="";
+			[Bindable]
+			public var sourceFrom:Number;
+			
+			private function init():void{
+				eventId=ExternalInterface.call("toGetEventId");
+				userId=ExternalInterface.call("toGetUserId");
+//				eventId=818;
+//				userId=15;
+			}
+			private function sendMsg():void{
+				exMsgSendArrc = new ArrayCollection();
+				if(StringUtil.trim(textContent.text).length>0)
+				{
+					var alertStr:String="";
+					for each(var item:Object in exMsgArrc){
+						var items:Object = new Object();
+						items.EM_MOBILE_NUM = item.cell;
+						if(item.cell!=null && item.cell!="" && item.cell!="null")
+						{
+							if(item.hasOwnProperty("postName"))
+							{
+								items.MSG_CONTENTS = item.name + item.postName+"，你好，"+textContent.text+"。";
+							}
+							else
+							{
+								items.MSG_CONTENTS = item.name + "，你好，"+textContent.text+"。";
+							}
+							exMsgSendArrc.addItem(items);
+						}
+						else
+						{
+							alertStr = alertStr + item.name +"、";
+						}
+					}
+					exMsgSendArrc.refresh();
+					if(exMsgSendArrc.length==0)
+					{
+						Alert.show("手机号均为空，不能进行发送操作。");
+					}
+					else if(alertStr.length>0)
+					{
+						Alert.show(alertStr.substring(0,alertStr.length-1) + " 手机号为空，不会加入发送列表中。", "", Alert.YES|Alert.NO, null, function(evt:CloseEvent):void{
+							if (evt.detail == Alert.YES){	
+								if(exMsgSendArrc.length>0)
+								{
+									sendMsgTo(exMsgSendArrc,mailTitle);
+								}	              
+							}
+							else if(evt.detail == Alert.NO){}
+							}, null, Alert.YES);
+					}
+					else{
+						sendMsgTo(exMsgSendArrc,mailTitle);
+					}
+				}
+				else
+				{
+					Alert.show("发送内容不能为空。");
+				}
+			}
+			private function sendMsgTo(exMsgSendArrc:ArrayCollection,mailTitle:String):void
+			{
+				if(parentApplication.hasOwnProperty("sourceMark") &&  parentApplication.sourceMark == "fromResAnalysis")
+				{
+					mailTitle = "来自资源分析通讯录";
+					exMsgRO.sendMsgAnylysis(userId,template.text,exMsgSendArrc,mailTitle,9);//9为sourceFrom字典--应急指挥
+				}
+				else if(parentApplication.hasOwnProperty("sourceMark") &&  parentApplication.sourceMark == "fromMainInterface")
+				{
+					mailTitle = "来自主界面通讯录";
+					exMsgRO.sendexMsg(eventId,userId,template.text,exMsgSendArrc,mailTitle);
+				}
+//				else if(parentApplication.sourceMark == "fromCommonAddrList")
+//				{
+//					mailTitle = "来自公共通讯录";
+//					exMsgRO.sendMsgAnylysis(userId,template.text,exMsgSendArrc,mailTitle,sourceFrom);
+//				}
+				else
+				{
+					mailTitle = "来自通讯录";
+					exMsgRO.sendMsgAnylysis(userId,template.text,exMsgSendArrc,mailTitle,sourceFrom);
+				}
+			}
+			private function exMsgFeedBack(event:ResultEvent):void{
+				Alert.show(event.result.toString());
+				PopUpManager.removePopUp(this);
+			}
+			private function anylysisMsgFeedBack(event:ResultEvent):void{
+				Alert.show(event.result.toString());
+				PopUpManager.removePopUp(this);
+			}
+			private function faultHandler(event:FaultEvent):void{
+				Alert.show("发送失败:"+event.formatToString);
+			}
+		]]>
+	</mx:Script>
+	<mx:RemoteObject id="exMsgRO"
+					 destination="addressListRO"
+					 fault="faultHandler(event)">
+		<mx:method name="sendexMsg"
+				   result="exMsgFeedBack(event)"/>
+		<mx:method name="sendMsgAnylysis"
+				   result="anylysisMsgFeedBack(event)"/>
+	</mx:RemoteObject>
+	<mx:VBox height="100%" width="100%">
+	<mx:Text id="template" text="短信模板-->短信内容"/>
+	<mx:DataGrid height="100%" width="100%" dataProvider="{exMsgArrc}">
+		<mx:columns>
+			<mx:DataGridColumn dataField="name" headerText="部门/姓名"/>
+			<mx:DataGridColumn dataField="cell" headerText="移动电话"/>
+		</mx:columns>
+	</mx:DataGrid>
+	<mx:HBox>
+	<mx:Label text="短信内容："/>
+	<mx:TextArea id="textContent" width="220" text="" backgroundColor="white" color="black"/>
+	<mx:Button label="发送" click="sendMsg()"/>
+	</mx:HBox>
+	</mx:VBox>
+</mx:TitleWindow>

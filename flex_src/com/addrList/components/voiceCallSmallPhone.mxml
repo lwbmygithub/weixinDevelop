@@ -1,0 +1,361 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" horizontalScrollPolicy="off" verticalScrollPolicy="off" width="190" height="260" showCloseButton="true" close="PopUpManager.removePopUp(this)" creationComplete="initLogin()">
+<mx:Style source="assets/css/styleSmallPhone.css"/>
+	<mx:Script>
+		<![CDATA[
+//			import com.google.maps.interfaces.INavigationControl;
+			import mx.managers.PopUpManager;
+			import mx.controls.Alert;
+			
+			//缩小版
+            [Bindable]
+            private var nineBtnW:int = 37;//68
+            [Bindable]
+            private var nineBtnH:int = 26;//68
+            [Bindable]
+            private var leftW:int = 0;//68
+            [Bindable]
+            private var rightW:int = 0;//68
+            
+            [Embed(source='assets/images/N-call-1.png')]
+			private var imgNcall:Class;
+			[Embed(source='assets/images/call-3.png')]
+			private var imgYcall:Class;
+            [Bindable]
+            private var imgCall:Class = imgNcall;
+            [Bindable]
+            private var callToopTip:String = '外拨';
+            [Bindable]
+            private var callBtnModel:Boolean = false;
+             
+            [Embed(source='assets/images/N-cut-1.png')]
+			private var imgNcut:Class;
+			[Embed(source='assets/images/cut-3.png')]
+			private var imgYcut:Class;
+            [Bindable]
+            private var imgCut:Class = imgNcut;
+            [Bindable]
+            private var cutToolTip:String = '挂机';
+            [Bindable]
+            private var cutBtnModel:Boolean = false;
+             
+             
+//            [Bindable]
+//			private var imgNcut:String = "assets/images/N-cut-1.png";				//不允许挂电话
+			[Bindable]
+			[Embed(source='assets/images/N-clear-1.png')]
+			private var imgNClear:Class;
+			
+            //坐席状态
+			private var agentIdle:String="idle";					//坐席空闲
+			private var agentWork : String = "work";				//坐席繁忙
+			private var agentInit:String="init";					//坐席初始化
+			
+			//通话状态
+			private var ringing:String="ringing";					//震铃状态
+			private var dailing:String="dailing";					//拨号状态
+			private var initCall:String="initCall";					//初始化
+			private var talking:String="talking";					//通话中
+			private var holding:String="holding";					//保持中
+			private var mulDailing:String="mulDailing"; 			//多方外拨中
+			private var mulDialComplete:String="mulDialComplete";	//多方外拨完成
+			private var transDailing:String="transDailing";			//转接外拨中
+			private var transComplete:String="transComplete";		//转接外拨完成
+			private var monitoring:String="monitoring";				//班长监听中
+			private var interrupting:String="interrupting";			//班长强插中
+			private var busyTone:String="busyTone";					//催挂音
+			private var talkEnded:String="talkEnded";				//通话结束（挂机）
+			
+            [Bindable]
+			private var agentStat:String;            //坐席状态
+			[Bindable]
+			public  var callStat:String="test";		//通话状态
+			private var serverStat : String;		 //语音服务器状态
+			//图片状态标志
+			private var yMark:String="Y";			//允许标志
+			private var nMark:String="N";			//禁止标志
+			private var cMark:String="C";			//完成标志
+			[Bindable]
+			public var retriveAllow:String;			//是否允许恢复
+			private var readyTimer:Timer;
+			private var loginStsTimer:Timer;
+			private var index:int=0;
+			//语音服务器
+			private var connect : String = "connect";				//语音服务器连接通知
+			private var unconnect : String = "unconnect";			//语音服务器断开通知
+			private var loginAgt:int;
+			[Bindable]
+			public var phoneCallNum:String = '';
+			private var selStates:Boolean = false;
+			public function init():void{
+				readyTimer = new Timer(100, 1000);
+				readyTimer.addEventListener(TimerEvent.TIMER, timerHandler);
+				readyTimer.start();
+//				ExternalInterface.addCallback("phoneNumHandler",phoneNumHandlers);
+				ExternalInterface.addCallback("agentStatus",agentStatus);
+				ExternalInterface.addCallback("callingStatus",callingStatus);
+				ExternalInterface.addCallback("serverStatus",serverStatus);
+				ExternalInterface.addCallback("toLoginSuccss",toLoginSuccss);
+			}
+			private function initLogin():void{
+				var loginSts:String=ExternalInterface.call("loginStatusHandler");
+				if(loginSts=='Login'){
+					toLoginSuccss();
+				}
+			}
+			private function toLoginSuccss():void{
+//				Alert.show("imgCall:"+imgCall+"   callBtnModel"+callBtnModel);
+//				if(imgCall==imgNcall || callBtnModel==false){
+					loginStsTimer = new Timer(100,1000);
+					loginStsTimer.addEventListener(TimerEvent.TIMER,loginStsTimerHanlder);
+					loginStsTimer.start();
+//				}
+			}
+			private function loginStsTimerHanlder(event:TimerEvent):void{	
+				ExternalInterface.call("initPages","indexFrom");
+				if(imgCall==imgYcall || callBtnModel==true){
+					loginStsTimer.stop();
+				}
+			}
+			
+			private function checkJavaScriptReady():Boolean {
+				var isReady:Boolean = ExternalInterface.call("isReady");
+				return isReady;
+			}
+			private function timerHandler(event:TimerEvent):void {
+				var isReady:Boolean = checkJavaScriptReady();
+//				Alert.show("isReady:"+isReady);
+				if (isReady) {
+					ExternalInterface.call("initPages","loacalFrom");
+					readyTimer.stop();
+				}
+			}
+            //点击数字键 
+			private function numBtnClick(event:MouseEvent):void{
+				phoneCallNum = phoneNum.text + event.target.label;
+//				searchAddress();
+			}
+			
+			//拨打电话
+			private function dialCall(dialNum:String):Boolean{
+//				isMutiTalk = true;
+					if(agentStat==agentIdle||callStat==initCall||callStat==talkEnded){//外拨
+							phoneCallNum = dialNum;
+							if(dialNum!=""){
+//								var outline : Boolean = isOutline.selected;
+								ExternalInterface.call("reqStartDialEvent",phoneCallNum,false);
+							}else{
+								Alert.show("您所拨打的号码为空,请重新拨号!");
+							}
+						return true;
+					}
+			
+				return false;
+			}
+			//清除当前输入框的内容
+			private function clearCurrentNum():void{
+				phoneCallNum = "";
+//				addrComp.strDoubleClickValue = null;
+//				numList.removeAll();
+			}
+			//挂掉电话
+			private function cutCall():Boolean{
+				if(callStat!=ringing&&callStat!=talkEnded){
+					ExternalInterface.call("reqHangUpChange");
+					return true;
+				}
+				return false;
+			}
+			//通过js传回坐席状态参数
+            public function agentStatus(status:String):void{
+//            	Alert.show(status);
+            	agentStat=status;
+//            	Alert.show("agentStat:"+agentStat);
+				switch(agentStat){
+					case agentInit:         //离线状态
+						callBtnIcon(nMark);
+						cutBtnIcon(nMark);
+						phoneCallNum = "";
+						break;
+						
+					case agentIdle:           //空闲状态
+//						Alert.show("kongxian"+status);
+						callBtnIcon(yMark);
+						cutBtnIcon(nMark);
+						break;
+					default:
+						break;
+				}
+            }
+            /*
+				通过js传回通话的状态参数
+				status - 状态参数
+				retriveAllowed - 是否允许恢复，主要针对催挂音状态，若上个电话为多方与转移后催挂可恢复，这个判断在common.js中进行
+				                 ‘Y'表示允许
+				                 'N'表示不允许
+			*/
+			public function callingStatus(status:String,retriveAllowed:String=""):void{
+				callStat=status;
+//				Alert.show("a:"+callStat);
+				retriveAllow=retriveAllowed;
+				switch(callStat){ 
+					case talking:		//通话中	
+						callBtnIcon(nMark);
+						cutBtnIcon(yMark);
+//						multiDialBtnIcon(yMark); 
+//						holdRetr.source = hold;	
+//						record.buttonMode=true;
+						break;
+					case dailing:
+						callBtnIcon(nMark);
+						cutBtnIcon(yMark);
+						ExternalInterface.call("autoHookOff");
+					case monitoring:
+						callBtnIcon(nMark);
+						cutBtnIcon(nMark);
+					case interrupting:
+						callBtnIcon(nMark);
+						cutBtnIcon(nMark);
+					case holding:		//保持中
+						callBtnIcon(nMark);
+						cutBtnIcon(yMark);
+//						multiDialBtnIcon(nMark); 
+//						holdRetr.source = retrieve;
+						break;
+					case initCall:		//电话初始化
+						callBtnIcon(yMark);
+						cutBtnIcon(yMark);
+						break;
+					case transDailing:	//转接中
+						null;
+						break;
+					case mulDialComplete://多方完成
+//						multiDialBtnIcon(yMark); 
+						callBtnIcon(nMark);
+						cutBtnIcon(yMark);
+						break;
+					case transComplete:	//转接完成
+						cutBtnIcon(yMark);
+						callBtnIcon(nMark);
+						break;
+					case busyTone:		//催挂音
+						cutBtnIcon(yMark);
+						callBtnIcon(nMark);	
+						if(retriveAllowed=='Y'){	
+							//如果上一个电话为转接或多方通话状态则可以恢复
+							//恢复按钮可用
+						}
+						break;
+					case talkEnded:		//通话结束（挂机）
+						callBtnIcon("Y");
+						cutBtnIcon("N");
+//						record.buttonMode=false; 	
+						break;
+					case "hasQueue":	//有队列时
+//						openLeftBox(dl);
+						break;
+					default:
+						break;
+				}
+			}
+			public function serverStatus(status : String) : void
+			{
+				serverStat = status;
+				switch(serverStat){
+					case unconnect:
+						phoneCallNum = "";
+						break; 
+					default:
+						break;
+				}
+			}
+            //外拨按钮imgDial的图标变化
+			private function callBtnIcon(type:String):void{
+				index = index+1;
+//				Alert.show(":"+index.toString()+type);
+				if(type==yMark){//允许外拨
+					imgCall=imgYcall;
+					callToopTip = "外拨";
+					callBtnModel=true;
+				}
+				if(type==nMark){//不允许外拨
+					imgCall=imgNcall;
+					callBtnModel=false;
+				}
+			}
+			//挂机按钮imgCut的图标变化
+			private function cutBtnIcon(type:String):void{
+				if(type==yMark){//允许挂电话
+					imgCut=imgYcut;
+					cutBtnModel=true;
+					cutToolTip = "挂机";
+					ExternalInterface.call('voiceBarkOnHook',true);
+				}
+				if(type==nMark){//不允许挂电话
+					imgCut=imgNcut;
+					cutBtnModel=false;
+					ExternalInterface.call('voiceBarkOnHook',false);
+				}	
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:Panel width="100%" height="100%" styleName="PanelForEffect">
+	<!--<mx:Panel width="180" height="180" styleName="PanelForMid">-->
+		<mx:VBox width="100%" height="100%" horizontalAlign="center" >
+		<mx:TextInput id="phoneNum" styleName="dialTextInput" text="{phoneCallNum}"/>
+		<mx:HBox horizontalAlign="center"  width="100%" height="20" verticalAlign="middle" verticalGap="0" horizontalGap="0">						
+							<mx:Image id="imgDial" width="40" height="27" source="{imgCall}" buttonMode="{callBtnModel}" click="dialCall(phoneNum.text)" toolTip="{callToopTip}"/>
+							<mx:Image id="imgClear" source="{imgNClear}" buttonMode="true" toolTip="删除" width="35" height="35" click="clearCurrentNum()"/>
+							<mx:Image id="imgCutId" width="40" height="27" buttonMode="{cutBtnModel}" source="{imgCut}" click="cutCall()" toolTip="{cutToolTip}"/>
+		</mx:HBox>
+			<mx:Grid horizontalAlign="center">
+						<mx:GridRow width="100%" height="100%">
+							<mx:GridItem width="100%" height="100%">
+								<mx:Button label="1" width="{nineBtnW}" height="{nineBtnH}" styleName="customButtonStyle1" click="numBtnClick(event)"/>
+							</mx:GridItem>
+							<mx:GridItem width="100%" height="100%">
+								<mx:Button label="2" width="{nineBtnW}" height="{nineBtnH}" styleName="customButtonStyle2" click="numBtnClick(event)"/>
+							</mx:GridItem>
+							<mx:GridItem width="100%" height="100%">
+								<mx:Button label="3" width="{nineBtnW}" height="{nineBtnH}" styleName="customButtonStyle3" click="numBtnClick(event)"/>
+							</mx:GridItem>
+						</mx:GridRow>
+						<mx:GridRow width="100%" height="100%">
+							<mx:GridItem width="100%" height="100%">
+								<mx:Button label="4" width="{nineBtnW}" height="{nineBtnH}" styleName="customButtonStyle1" click="numBtnClick(event)"/>
+							</mx:GridItem>
+							<mx:GridItem width="100%" height="100%">
+								<mx:Button label="5" width="{nineBtnW}" height="{nineBtnH}" styleName="customButtonStyle2" click="numBtnClick(event)"/>
+							</mx:GridItem>
+							<mx:GridItem width="100%" height="100%">
+								<mx:Button label="6" width="{nineBtnW}" height="{nineBtnH}" styleName="customButtonStyle3"  click="numBtnClick(event)"/>
+							</mx:GridItem>
+						</mx:GridRow>
+						<mx:GridRow width="100%" height="100%">
+							<mx:GridItem width="100%" height="100%">
+								<mx:Button label="7" width="{nineBtnW}" height="{nineBtnH}" styleName="customButtonStyle1" click="numBtnClick(event)"/>
+							</mx:GridItem>
+							<mx:GridItem width="100%" height="100%">
+								<mx:Button label="8" width="{nineBtnW}" height="{nineBtnH}" styleName="customButtonStyle2" click="numBtnClick(event)"/>
+							</mx:GridItem>
+							<mx:GridItem width="100%" height="100%">
+								<mx:Button label="9" width="{nineBtnW}" height="{nineBtnH}" styleName="customButtonStyle3" click="numBtnClick(event)"/>
+							</mx:GridItem>
+						</mx:GridRow>
+						<mx:GridRow width="100%" height="100%">
+							<mx:GridItem width="100%" height="100%">
+								<mx:Button label="*" width="{nineBtnW}" height="{nineBtnH}" styleName="customButtonStyle1" click="numBtnClick(event)"/>
+							</mx:GridItem>
+							<mx:GridItem width="100%" height="100%">
+								<mx:Button label="0" width="{nineBtnW}" height="{nineBtnH}" styleName="customButtonStyle2" click="numBtnClick(event)"/>
+							</mx:GridItem>
+							<mx:GridItem width="100%" height="100%">
+								<mx:Button label="#" width="{nineBtnW}" height="{nineBtnH}" styleName="customButtonStyle3" click="numBtnClick(event)"/>
+							</mx:GridItem>
+						</mx:GridRow>							
+					</mx:Grid>
+		</mx:VBox>
+	<!--</mx:Panel>-->
+</mx:Panel>
+</mx:TitleWindow>

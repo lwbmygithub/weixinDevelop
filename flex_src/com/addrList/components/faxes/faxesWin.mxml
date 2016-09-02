@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" width="430" height="330"
+	showCloseButton="true" title="{'传真发送'+'('+faxArrc.length+')'}" verticalScrollPolicy="off" horizontalScrollPolicy="off" fontSize="12" close="PopUpManager.removePopUp(this)" creationComplete="init();" cornerRadius="10" borderColor="#6D6778">
+<mx:Script>
+	<![CDATA[
+		import mx.controls.Alert;
+		import mx.managers.PopUpManager;
+		import com.addrList.components.CommonEvent;
+//		import com.esri.solutions.flexviewer.SiteContainer;
+		import mx.collections.ArrayCollection;
+		[Bindable]
+		public var faxArrc:ArrayCollection = new ArrayCollection();
+		
+		
+		private function init():void{
+//			SiteContainer.addEventListener(CommonEvent.FAX_NUMS,faxNumsHandler);
+//			此处需要修改
+		}
+		public function faxNumsHandler(evt:CommonEvent):void{
+			faxArrc = evt.data as ArrayCollection;
+			faxArrc.refresh();
+		}
+		public function sendFax():void{
+			var sucSend:String="";
+			var failSend:String="";
+			for each(var item:Object in faxArrc){
+				var faxStatus:Boolean = ExternalInterface.call("faxSend", item.FAX_NUMBER);
+				if(faxStatus){
+					if(item.FAX_NUMBER!=null && item.FAX_NUMBER !="")
+					{
+						sucSend = sucSend+item.FAX_NUMBER+";";
+					}
+				}
+				else{
+					if(item.FAX_NUMBER!=null && item.FAX_NUMBER !="")
+					{
+						failSend = failSend+item.FAX_NUMBER+";";
+					}
+				}
+			}
+			if(sucSend.length==0)
+				{sucSend = "0";}
+			if(failSend.length==0)
+				{failSend = "0";}
+			Alert.show("成功发送："+sucSend+" || 发送失败："+failSend,"传真发送结果");
+		}
+	]]>
+</mx:Script>
+<mx:VBox width="100%" height="100%" verticalScrollPolicy="off" horizontalScrollPolicy="off">
+	<mx:HBox width="90%" horizontalAlign="right">
+	<mx:Button label="{faxArrc.length>1?'群发传真':'发送传真'}" click="sendFax();"  enabled="{faxArrc.length>0}"/>
+	<mx:Button label="取消" click="PopUpManager.removePopUp(this);"/>
+	</mx:HBox>
+	<mx:DataGrid dataProvider="{faxArrc}" fontSize="12" width="100%" height="93%">
+		<mx:columns>
+			<mx:DataGridColumn dataField="NAME_C" headerText="姓名" showDataTips="true"/>
+			<mx:DataGridColumn dataField="FAX_NUMBER" headerText="传真" showDataTips="true"/>
+			<mx:DataGridColumn dataField="CONTACTOR_MOBILE" headerText="手机" showDataTips="true"/>
+			<mx:DataGridColumn dataField="CONTACTOR_TEL" headerText="电话" showDataTips="true"/>
+		</mx:columns>
+	</mx:DataGrid>
+	</mx:VBox>
+</mx:TitleWindow>

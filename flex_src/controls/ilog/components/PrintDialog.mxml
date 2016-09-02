@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+///////////////////////////////////////////////////////////////////////////////
+// Licensed Materials - Property of IBM
+// 
+// (c) Copyright IBM Corporation 2007, 2009. All Rights Reserved.
+//
+// Note to U.S. Government Users Restricted Rights:
+// Use, duplication or disclosure restricted by GSA ADP Schedule
+// Contract with IBM Corp.
+///////////////////////////////////////////////////////////////////////////////
+-->
+
+<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml" headerHeight="20" borderThicknessLeft="3" borderThicknessRight="3" borderThicknessBottom="5" fontSize="12" title="@Resource(bundle='orgchartsample', key='orgchartsample.printDialogTitle')"
+  layout="vertical" verticalScrollPolicy="off" horizontalScrollPolicy="off" creationComplete="init()">
+  <mx:Script>
+    <![CDATA[
+      import mx.effects.easing.Bounce;
+      import mx.managers.PopUpManager;
+
+      public var printFunction:Function;
+      
+      private function init():void
+      {
+        addEventListener(KeyboardEvent.KEY_DOWN, onKeyDown);
+      }
+      
+      private function onKeyDown(e:KeyboardEvent):void
+      {
+        if (e.keyCode == Keyboard.ESCAPE)
+          doCancel();
+        if (e.keyCode == Keyboard.ENTER)
+          doPrint();
+      }
+      
+      private function doCancel():void
+      {
+        PopUpManager.removePopUp(this);
+        removeEventListener(KeyboardEvent.KEY_DOWN, onKeyDown);        
+      }
+      
+      private function doPrint():void
+      {
+        PopUpManager.removePopUp(this);
+        printFunction(cols.value, lg.value, abcCB.selected);
+        removeEventListener(KeyboardEvent.KEY_DOWN, onKeyDown);        
+      }
+    ]]>
+  </mx:Script>
+  <mx:states>
+    <mx:State name="abcState">
+      <mx:AddChild relativeTo="{abcVBox}" position="lastChild">
+        <mx:TextArea tabEnabled="false" width="100%" color="0xFF0000" text="@Resource(bundle='orgchartsample', key='orgchartsample.warning')" editable="false"
+          selectable="false" borderStyle="none"/>
+      </mx:AddChild>
+    </mx:State>
+  </mx:states>
+  <mx:Form width="100%" verticalScrollPolicy="off" horizontalScrollPolicy="off" verticalGap="12">
+    <mx:FormItem label="@Resource(bundle='orgchartsample', key='orgchartsample.lod')">
+       <mx:ComboBox id="lg" width="100%"> 
+          <mx:ArrayCollection>
+            <mx:Object label="@Resource(bundle='orgchartsample', key='orgchartsample.current')" data="-1"/>
+            <mx:Object label="@Resource(bundle='orgchartsample', key='orgchartsample.low')" data="0.1"/>
+            <mx:Object label="@Resource(bundle='orgchartsample', key='orgchartsample.medium')" data="0.5"/>
+            <mx:Object label="@Resource(bundle='orgchartsample', key='orgchartsample.high')" data="0.8"/>            
+          </mx:ArrayCollection>
+       </mx:ComboBox>
+    </mx:FormItem>
+    <mx:FormItem label="@Resource(bundle='orgchartsample', key='orgchartsample.printlayout')">
+      <mx:VBox id="abcVBox">
+        <mx:CheckBox id="abcCB" label="@Resource(bundle='orgchartsample', key='orgchartsample.abc')" width="100%"
+          click="if (abcCB.selected) currentState = 'abcState' else currentState = ''"/>
+      </mx:VBox>      
+    </mx:FormItem>
+    <mx:FormItem label="@Resource(bundle='orgchartsample', key='orgchartsample.cols')" width="100%">
+      <mx:VBox width="100%">
+        <mx:HBox width="100%">
+          <mx:NumericStepper minimum="1" maximum="5" minWidth="60" id="cols" value="2"/>  
+        </mx:HBox>
+        <mx:TextArea tabEnabled="false" width="100%" text="@Resource(bundle='orgchartsample', key='orgchartsample.info')" editable="false"
+          selectable="false" borderStyle="none" id="text2" 
+          horizontalScrollPolicy="off" verticalScrollPolicy="off"/>
+      </mx:VBox>
+    </mx:FormItem>
+  </mx:Form>
+  <mx:HBox x="0" width="100%" verticalAlign="bottom" horizontalAlign="right" bottom="5">
+    <mx:Button fontSize="12" label="@Resource(bundle='orgchartsample', key='orgchartsample.print2')" minWidth="50" click="doPrint()"/>
+    <mx:Button fontSize="12" label="@Resource(bundle='orgchartsample', key='orgchartsample.cancel')" minWidth="50" click="doCancel()"/>
+  </mx:HBox>
+</mx:Panel>

@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Panel title="{parentApplication.timeTitle + realm +'事件明细'}" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:tabBars="popUpWindows.containers.tabContainers.*" xmlns="*" creationComplete="init()" width="600" height="500" fontSize="12"
+	borderColor="#cccccc" borderAlpha="0.9" textAlign="center">
+
+	<mx:RemoteObject id="dictRO" destination="emergencyEventFlexCountRO">
+		<mx:method name="getEventsDetail" result="getEventsDetailHandler(event)"/>
+	</mx:RemoteObject>
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.TextArea;
+			import mx.containers.VBox;
+			import flexlib.controls.tabBarClasses.SuperTab;
+			import mx.charts.events.ChartItemEvent;
+			import com.esri.solutions.gmapviewer.utils.Hashtable;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.controls.Alert;
+			import mx.charts.series.ColumnSeries;
+			import mx.charts.CategoryAxis;
+			import mx.rpc.events.ResultEvent;
+			import mx.collections.ArrayCollection;
+			
+			[Bindable]
+			public var eventDetailArrc:ArrayCollection;
+			[Bindable]
+			public var realm:String;
+			[Bindable]
+			public var eventType:String;
+			[Bindable]
+			public var rowMark:String='';
+			
+	      	internal function doBack():void {
+            PopUpManager.removePopUp(this);    
+            }
+            
+            private function init():void
+            {
+            	dictRO.getEventsDetail(eventType,realm,parentApplication.yearStr,parentApplication.monthStr,parentApplication.quarterStr,rowMark);
+            }
+            private function getEventsDetailHandler(eve:ResultEvent):void
+            {
+            	var eventList:ArrayCollection = eve.result as ArrayCollection;
+            	for each(var obj:Object in eventList)
+            	{
+            		var vbox:VBox = new VBox();
+            		vbox.width = superTabId.width;
+            		vbox.height = superTabId.height;
+            		var textArea:TextArea = new TextArea();
+            		textArea.width = vbox.width*0.98;
+            		textArea.height = vbox.height*0.9;
+            		
+            		vbox.label = obj.EVENT_NAME
+					textArea.htmlText = "<Font color='#000000'><b>事故名称:</b>" + obj.EVENT_NAME+ "\n" +
+											"<b>事故描述:</b>" + obj.EVENT_CONTENT+ "\n" +
+											"<b>开始时间:</b>" + dateFormatId.format(obj.EVENT_START_TIME)+ "\n" +
+											"<b>结束时间:</b>" + dateFormatId.format(obj.EVENT_END_TIME)+ "\n" +
+											"<b>事故地点:</b>" + obj.EVENT_ADDR+ "\n" +
+											"<b>接报时间:</b>" + dateFormatId.format(obj.RECEIVE_TIME)+ "\n" +
+											"<b>事件来源:</b>" + obj.EVENT_SOURCE_ID+ "\n" +
+											"<b>联系人:</b>" + obj.CONTACT_MAN+ "\n" +
+											"<b>电话号码:</b>" + obj.CONTACT_PHONE+ "\n" +
+											"<b>区域:</b>" + obj.OCCUR_AREA+ "\n" +
+											"<b>街道:</b>" + obj.OCCUR_STREET+ "\n" +
+											"<b>受灾人口:</b>" + obj.STRICKEN_PEOPLE+ "\n" +
+											"<b>死亡人数:</b>" + obj.DEAD_NUM+ "\n" +
+											"<b>受伤人数:</b>" + obj.HURT_NUM+ "\n" +
+											"<b>受灾面积:</b>" + obj.STRICKEN_AREA+ "\n" +
+											"<b>受灾经济:</b>" + obj.STRICKEN_ECONOMIC+ "\n" +
+											"<b>拟办意见:</b>" + obj.PROCESS_MIND+ "\n" +
+											"<b>是否信息发布:</b>" + obj.IF_PUBLISH+ "\n" +"</Font>";
+				vbox.addChild(textArea);
+				superTabId.addChild(vbox)
+            	}
+            }
+		]]>
+	</mx:Script>
+	<mx:DateFormatter id="dateFormatId"
+					  formatString="YYYY-MM-DD H:NN:SS"/>
+	<tabBars:SuperTabNavigator id="superTabId"
+		   scrollSpeed="25"
+		   dropShadowEnabled="true"
+		   stopScrollingEvent="{MouseEvent.MOUSE_OUT}"
+		   startScrollingEvent="{MouseEvent.MOUSE_OVER}"
+		   width="100%"
+		   height="100%"
+		   horizontalGap="0"
+		   textAlign="left"
+		   closePolicy="{SuperTab.CLOSE_ROLLOVER}"/>
+	<mx:ControlBar horizontalAlign="center">
+    	<mx:Button label="关闭" x="160" y="128" click="doBack();"/>
+    </mx:ControlBar>
+</mx:Panel>

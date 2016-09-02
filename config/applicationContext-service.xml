@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.0.xsd">
+	<bean id="queryManager" class="com.sunwah.baseapp.service.QueryManagerImpl">
+		<property name="queryDao" ref="queryDao" />
+	</bean>
+	
+	<bean id="coreService" class="com.sunwah.baseapp.weixin.service.CoreServiceImpl">
+		    <property name="articleService" ref="articleService"></property>
+			<property name="contentService" ref="contentService"></property>
+			<property name="menuArticleService" ref="menuArticleService"></property>
+			<property name="menuContentService" ref="menuContentService"></property>
+			<property name="queryManager" ref="queryManager"></property>
+	 </bean>
+
+	<bean id="menuService" class="com.sunwah.baseapp.weixin.service.MenuServiceImpl">
+		<property name="menuDao" ref="menuDao" />
+	</bean>
+	
+	<bean id="articleService" class="com.sunwah.baseapp.weixin.service.ArticleServiceImpl">
+		<property name="articleDao" ref="articleDao" />
+	</bean>
+	
+	<bean id="contentService" class="com.sunwah.baseapp.weixin.service.ContentServiceImpl">
+		<property name="contentDao" ref="contentDao" />
+	</bean>
+	
+	<bean id="menuArticleService" class="com.sunwah.baseapp.weixin.service.MenuArticleServiceImpl">
+		<property name="menuArticleDao" ref="menuArticleDao" />
+	</bean>
+	
+	<bean id="menuContentService" class="com.sunwah.baseapp.weixin.service.MenuContentServiceImpl">
+		<property name="menuContentDao" ref="menuContentDao" />
+	</bean>
+	
+	<bean id="weixinMenuService" class="com.sunwah.baseapp.weixin.service.WeixinMenuServiceImpl">
+		<property name="menuService" ref="menuService"></property>
+	</bean>
+	
+	<bean id="weixinMessageService" class="com.sunwah.baseapp.weixin.service.WeixinMessageServiceImpl">
+	</bean>
+	
+	<bean id="weixinTagService" class="com.sunwah.baseapp.weixin.service.WeixinTagServiceImpl">
+		<property name="weixinUserService" ref="weixinUserService"></property>
+	</bean>
+	
+	<bean id="weixinUserService" class="com.sunwah.baseapp.weixin.service.WeixinUserServiceImpl">
+	</bean>
+	
+	<bean id="weixinMediaService" class="com.sunwah.baseapp.weixin.service.WeixinMediaServiceImpl">
+	</bean>
+	
+	<bean id="weixinAuthorizeService" class="com.sunwah.baseapp.weixin.service.WeixinAuthorizeServiceImpl">
+	</bean>
+	
+	<bean id="weixinQrCodeService" class="com.sunwah.baseapp.weixin.service.WeixinQrCodeServiceImpl">
+	</bean>
+	
+</beans>

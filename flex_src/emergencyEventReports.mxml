@@ -1,0 +1,371 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:comp="com.connectedpixel.charts.*" layout="absolute" creationComplete="init()" horizontalScrollPolicy="off" verticalScrollPolicy="off" backgroundColor="0xFFFFFF" fontSize="13">
+	<mx:RemoteObject id="dictRO" destination="emergencyEventFlexCountRO" fault="faultHandler(event)">
+		<mx:method name="findAllEventCount" result="findAllEventCountHandler(event)"/>
+	</mx:RemoteObject>
+	<mx:Script source="com/addrList/expertAddrList/utils.as"/>
+	<mx:Style>
+		DataGrid {
+		   alternatingItemColors: #ffffff, #cccccc;
+		   horizontalGridLines: false;
+		   horizontalGridLineColor: #000000;
+		   verticalGridLineColor: #999999;
+		}
+		ToolTip{
+		    font-family:            verdana;
+		    font-size:              13px;
+		}
+		.dataGrid2 {
+		   alternatingItemColors: #cc99ff, #eff1f2;
+		   horizontalGridLines: true;
+		   horizontalGridLineColor: #6633ff;
+		   verticalGridLineColor: #6633ff;
+		   borderColor: #6633ff;
+		   fontSize: 12;
+		   fontWeight: bold;
+		   headerStyleName: "mydataGridHeaderStyle";
+		}
+		
+		.mydataGridHeaderStyle {
+		   color: #003366;
+		   fontSize: 11;
+		}
+		.ChineseFont{ 
+		fontFamily:"Verdana","宋体"; 
+		fontSize:12; 
+		horizontalGap:5;
+		} 
+	</mx:Style>
+	<mx:Script>
+		<![CDATA[
+			import mx.messaging.messages.RemotingMessage;
+			import mx.events.ItemClickEvent;
+			import mx.printing.FlexPrintJobScaleType;
+			import mx.printing.FlexPrintJob;
+			import mx.core.IUIComponent;
+			import mx.utils.URLUtil;
+			import com.reports.emergencyEventReports.components.eventReportRowRenderer;
+			import com.reports.emergencyEventReports.components.ScrollLineChart;
+			import com.connectedpixel.ScrollChart;
+			import com.connectedpixel.charts.ScrollableAxisRenderer;
+			import com.reports.emergencyEventReports.components.PieBarByRealm;
+			import mx.events.ListEvent;
+			import com.reports.emergencyEventReports.components.PieBarByEventType;
+			import mx.collections.Sort;
+			import mx.events.DataGridEvent;
+			import com.reports.emergencyEventReports.components.EventPie;
+			import mx.rpc.events.FaultEvent;
+			import mx.charts.series.ColumnSeries;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.rpc.events.ResultEvent;
+			import mx.controls.Alert;
+			import mx.collections.ArrayCollection;
+			import mx.managers.PopUpManager;
+			import mx.charts.HitData;
+			import mx.charts.series.LineSeries;
+			import mx.charts.chartClasses.IAxis;
+			import mx.charts.CategoryAxis;
+			import mx.controls.HorizontalList;
+			import mx.charts.chartClasses.Series;
+			
+			[Bindable]
+		    public var timeTitle:String = '';
+			[Bindable]
+		    private var monthslist:Array=[{label:"一月",value:01},{label:"二月",value:02},{label:"三月",value:03},{label:"四月", value:04},{label:"五月", value:05},{label:"六月", value:06},{label:"七月", value:07},{label:"八月", value:08},{label:"九月", value:09},{label:"十月", value:10},{label:"十一月", value:11},{label:"十二月", value:12}];
+		    [Bindable]
+		    private var quarterList:Array=[{label:"第一季度",value:1},{label:"第二季度",value:2},{label:"第三季度",value:3},{label:"第四季度",value:4}];
+		    [Bindable]
+		    private var yearsList:Array=[{label:"2009",value:2009},{label:"2010",value:2010},{label:"2011",value:2011},{label:"2012",value:2012},{label:"2013",value:2013},{label:"2014",value:2014},{label:"2015",value:2015},{label:"2016",value:2016},{label:"2017",value:2017},{label:"2018",value:2018},{label:"2019",value:2019},{label:"2020",value:2020}];
+			[Bindable]
+			private var eventReportRowRenderer:IFactory = new ClassFactory(com.reports.emergencyEventReports.components.eventReportRowRenderer);
+			[Bindable]
+			public var eventCountArrc:ArrayCollection;
+//			[Bindable]
+//			public var eventAllCountArrc:ArrayCollection;//汇总行
+			[Bindable]
+			public var dictDataArrc:ArrayCollection;
+			[Bindable]
+			public var typeDataArrc:ArrayCollection;
+			[Bindable]
+			public var realms:ArrayCollection;
+			[Bindable]
+			public var eventCountHeaderArrC:ArrayCollection;
+			[Bindable]
+			public var eventAllCountHeaderArrC:ArrayCollection;//汇总行的标题column
+			[Bindable]
+			public var allEventsForPie:ArrayCollection;//汇总行圆饼图dataprovider
+			public var yearStr:String;
+			public var monthStr:String;
+			public var quarterStr:String;
+			[Bindable]
+            private var serverUrl:String;
+            
+			private function init():void{
+				var url:String = Application.application.url;
+                serverUrl='http://'+URLUtil.getServerName(url)+':'+URLUtil.getPort(url)+'/jm_emDuty/ExcelExport.jsp';
+                var today:Date=new Date(); 
+				var curYear:Number = today.getFullYear();
+				var curMonth:Number = today.getMonth() +1;
+				var len:int = yearsList.length;
+				var monLen:int = monthslist.length;
+				for(var i:int=0;i<len;i++)
+				{
+					if(yearsList[i].value==curYear)
+					{
+						year.selectedIndex = i;
+						break;
+					}
+				}
+				for(var j:int=0;j<monLen;j++)
+				{
+					if(monthslist[j].value==curMonth)
+					{
+						month.selectedIndex = j;
+						break;
+					}
+				}
+				findEventsReport();
+			}
+			private function findEventsReport():void
+			{
+				yearStr=''; 
+				monthStr='';
+				quarterStr='';
+				if(byMonth.selected)
+				{
+					yearStr = year.selectedItem.value.toString();
+					monthStr = month.selectedItem.value.toString();
+					timeTitle = yearStr + "年" + month.selectedItem.label;
+				}
+				else if(byQuarter.selected)
+				{
+					yearStr = year.selectedItem.value.toString();
+					quarterStr = quarter.selectedItem.value.toString();
+					timeTitle = yearStr + "年" + quarter.selectedItem.label;
+				}
+				else if(byYear.selected)
+				{
+					yearStr = year.selectedItem.value.toString();
+					timeTitle = yearStr + "年";
+				}
+				dictRO.findAllEventCount(yearStr,monthStr,quarterStr);
+			}
+			//图形展示方式为，用不同的颜色线表示不同的区，横坐标表示各类事故，每个区域的事故连成一条线
+			private function findAllEventCountHandler(eve:ResultEvent):void{
+				var temArr:ArrayCollection = eve.result as ArrayCollection;
+				typeDataArrc = new ArrayCollection();
+				if(temArr.length>0){
+					eventCountArrc = temArr.getItemAt(0).DICT_DATA_LIST;
+//				eventAllCountArrc = temArr.getItemAt(0).EVENT_ALL_COUNT_LIST;
+				typeDataArrc = temArr.getItemAt(0).TYPE_DATA_LIST;
+				realms = temArr.getItemAt(0).REALMS;
+				allEventsForPie = temArr.getItemAt(0).ALL_EVENTS_FOR_PIE
+				}
+				eventCountHeaderArrC = new ArrayCollection(eventCountId.columns);
+//				eventAllCountHeaderArrC = new ArrayCollection(eventAllCountId.columns);
+				repeaterHandler(eventCountHeaderArrC);
+//				repeaterHandler(eventAllCountHeaderArrC);
+				
+//				var horAxisP:CategoryAxis = new CategoryAxis();
+//        		horAxisP.categoryField = " 事件类型";
+//        		colChartID.horizontalAxis = horAxisP;
+//        		var arrayFiel:Array = new Array();
+//        		for(var i:Number = 0; i <realms.length; i++){
+//        			var yFielName:String = realms[i].REALM_NAME;
+//					var lineSer:LineSeries = new LineSeries;
+//					lineSer.yField = yFielName;
+//					lineSer.displayName = realms[i].REALM_NAME;
+//					arrayFiel[i] = lineSer;
+//        		}
+//		        colChartID.series=arrayFiel;
+
+				chartBox.removeAllChildren();
+				var comp:ScrollLineChart = new ScrollLineChart();
+				chartBox.addChild(comp);
+				comp.realms = realms;
+				comp.myChart.dataProvider =typeDataArrc;
+				comp.zoomSlider.maximum=typeDataArrc.length;
+		        
+			}
+		 private function faultHandler(event:FaultEvent):void{
+	      	Alert.show(event.fault.faultString);
+	      }
+	     
+	      private function gridItemClick(event:ListEvent):void
+	      {
+	      	  if(eventCountId.selectedIndex + 1 ==eventCountArrc.length)//选择汇总列时，可显示全市各类事故柱状和饼状比例分布图
+	      	   {
+	      			var pieBarByRealm:PieBarByRealm= new PieBarByRealm();
+			      	var obje:Object = eventCountId.selectedItem;
+			      	var temArrc:ArrayCollection = new ArrayCollection();
+			      	temArrc.addItem(obje);
+			      	pieBarByRealm.eventData = temArrc;
+			      	pieBarByRealm.pieArr = allEventsForPie;
+			        pieBarByRealm.x = 0;
+			        pieBarByRealm.y = 0;
+			        PopUpManager.addPopUp(pieBarByRealm, panelID, false);
+			        PopUpManager.centerPopUp(pieBarByRealm);
+		       }
+		       else if(eventCountId.selectedIndex + 2 !=eventCountArrc.length)//选择区域单行时可饼状图和柱状图展示该区各类事故数量和所占比例
+		       {
+		       		var eventDetailWin:EventPie = new EventPie();
+			      	var obj:Object = eventCountId.selectedItem;
+			      	var temArr:ArrayCollection = new ArrayCollection();
+			      	temArr.addItem(obj);
+			      	eventDetailWin.eventData = temArr;
+			        eventDetailWin.x = 0;
+			        eventDetailWin.y = 0;
+			        PopUpManager.addPopUp(eventDetailWin, panelID, false);
+			        PopUpManager.centerPopUp(eventDetailWin);
+		       }
+	      }
+//	      private function gridItemClickHandler(event:ListEvent):void
+//	      {
+//	      		var pieBarByRealm:PieBarByRealm= new PieBarByRealm();
+//		      	var obje:Object = eventAllCountId.selectedItem;
+//		      	var temArrc:ArrayCollection = new ArrayCollection();
+//		      	temArrc.addItem(obje);
+//		      	pieBarByRealm.eventData = temArrc;
+//		      	pieBarByRealm.pieArr = allEventsForPie;
+//		        pieBarByRealm.x = 0;
+//		        pieBarByRealm.y = 0;
+//		        PopUpManager.addPopUp(pieBarByRealm, panelID, false);
+//		        PopUpManager.centerPopUp(pieBarByRealm);
+//	      }
+	      //选择事故类列时，可饼状图和柱状图展示该类事故各区所占比例
+	      private function headerReleaseHandler(event:DataGridEvent):void
+	      {
+		      	event.stopImmediatePropagation();//阻止排序
+		      	if(event.dataField.toString()!=' 所属区域')
+		      	{
+		      	var pieBarByEventType:PieBarByEventType = new PieBarByEventType();
+		      	pieBarByEventType.x = 0;
+		      	pieBarByEventType.y = 0;
+//		      	Alert.show("ss:"+event.dataField.substring(0,event.dataField.indexOf("_ETID@"))+"---"+event.dataField.substring(event.dataField.lastIndexOf("_ETID@")+6,event.dataField.length))
+		      	pieBarByEventType.eventTypeName = event.dataField.substring(0,event.dataField.indexOf("_ETID@"));//Mazole 2011-6-7
+		      	pieBarByEventType.eventTypeId = event.dataField.substring(event.dataField.lastIndexOf("_ETID@")+6,event.dataField.length);//Mazole 2011-6-7
+		      	pieBarByEventType.realms = realms;
+		      	pieBarByEventType.fieldName = event.dataField;
+		      	PopUpManager.addPopUp(pieBarByEventType, panelID, false);
+		        PopUpManager.centerPopUp(pieBarByEventType);
+		       }
+	      }
+	      //
+	      private function eventCountGridLabelFunction(item:Object, column:DataGridColumn):String{
+	      	var headerTextStr:String = column.headerText;
+	      	if(column.headerText =="REALM_ID" ){
+	      		column.visible = false;
+	      	}
+	      	if(headerTextStr.indexOf("_ETID@")!=-1 ){
+	      		column.headerText = headerTextStr.substring(0,headerTextStr.indexOf("_ETID@"));
+	      		return column.headerText;
+	      	}
+	      	else
+	      		return item[column.dataField];
+	      }
+	      private function repeaterHandler(eventCountHeaderArrC:ArrayCollection):void{
+	      	for each(var item:Object in eventCountHeaderArrC){
+	      		if(item.headerText=="REALM"){
+	      			item.visible = false;
+	      			break;
+	      		}
+	      		else if(item.headerText==" 所属区域"){
+	      			item.width = 80;
+	      		}
+	      	}
+	      }
+//	      private function doubleClickHandler(event:MouseEvent):void
+//	      {
+//	      		var index:int = event.columnIndex;
+//	      		var objType:Object= eventCountHeaderArrC.getItemAt(event.columnIndex) as Object;
+//	      		var eventType:String = objType.headerText;
+//	      		var obj:Object = eventCountId.selectedItem;
+//	      		var realm:String = obj.REALM;
+//	      }
+		public function loadExcel(id:DataGrid):void{
+			loadDGInExcel(id,serverUrl);
+		}
+		public function doPrint(printBox:IUIComponent):void
+			{
+				var printJob:FlexPrintJob = new FlexPrintJob();
+				if (printJob.start())
+                {
+				var h:Number = printJob.pageHeight;
+            	var w:Number = printJob.pageWidth;
+            	//VBOX
+            	try
+                    {
+	                printJob.addObject(printBox, FlexPrintJobScaleType.SHOW_ALL);
+	            	printJob.printAsBitmap;
+	            	}
+                    catch (e:Error)
+                    {
+                        Alert.show( e.toString() );
+                    }
+                    printJob.send();
+                }
+			}
+		private function toPrint():void{
+			if(toggle.selectedIndex==0)
+				{
+					doPrint(eventCountId);
+				}
+				else if(toggle.selectedIndex==1)
+				{
+					var lineChart:ScrollLineChart = chartBox.getChildAt(0) as ScrollLineChart;
+					lineChart.toPrint();
+				}
+		}
+		
+		 private function handleType(event:ItemClickEvent):void {
+            if (event.currentTarget.selectedValue == "byYear") {
+                    month.visible = false;
+                    quarter.visible = false;
+            } 
+            else {
+                if (event.currentTarget.selectedValue == "byMonth") {
+                    month.visible = true;
+                    month.width = 90;
+                    quarter.visible = false; 
+                } 
+                else {
+                    month.visible = false;
+                    month.width = 0;
+                    quarter.visible = true;
+                }
+            } 
+        }
+		]]>
+	</mx:Script>
+<mx:Panel title="{'江门市事件统计图表('  + timeTitle + ')'}" width="100%" height="100%" id="panelID" fontSize="12">      
+	<mx:ApplicationControlBar width="100%">
+        <mx:RadioButtonGroup id="datetype" itemClick="handleType(event);"/>
+        <mx:RadioButton groupName="datetype" id="byMonth" value="byMonth" 
+            label="按月统计" selected="true" />
+        <mx:RadioButton groupName="datetype" id="byQuarter" value="byQuarter" 
+            label="按季统计" />
+        <mx:RadioButton groupName="datetype" id="byYear" value="byYear" 
+            label="按年统计"/>
+        <mx:ComboBox id="year" dataProvider="{yearsList}" change="findEventsReport()"/>
+        <mx:ComboBox id="month" dataProvider="{monthslist}" change="findEventsReport()"/>
+        <mx:ComboBox id="quarter" dataProvider="{quarterList}" visible="false" change="findEventsReport()"/>
+    	<mx:Button label="查询" click="findEventsReport()" />
+    </mx:ApplicationControlBar>
+	<mx:ViewStack id="vs" width="100%" height="90%" creationPolicy="all" >
+	   <mx:VBox id="danymDataGrid" icon="@Embed('icon_grid.png')" width="100%" height="95%" toolTip="查看列表" verticalGap="0" fontSize="13">
+		<mx:DataGrid id="eventCountId" width="100%" dataProvider="{eventCountArrc}" rowCount="15" labelFunction="eventCountGridLabelFunction"  headerRelease="headerReleaseHandler(event)" itemClick="gridItemClick(event)" itemRenderer="{eventReportRowRenderer}">
+		</mx:DataGrid>
+	   </mx:VBox>
+	   <mx:VBox id="chartBox" width="100%" height="100%" icon="@Embed('icon_chart.png')" toolTip="查看线性图" hideEffect="Fade" showEffect="Fade" fontSize="13">
+	   </mx:VBox> 
+	</mx:ViewStack>
+<mx:ControlBar verticalGap="0" paddingTop="1" height="30">
+    <mx:ToggleButtonBar dataProvider="{vs}" id="toggle"/>
+    <mx:Button label="打印" click="toPrint()"/>
+    <mx:Button visible="{toggle.selectedIndex==0}" label="导出EXCEL" click="loadExcel(eventCountId);"/>
+</mx:ControlBar>
+</mx:Panel>	
+<!--
+<mx:Repeater dataProvider="{eventCountHeaderArrC}" id="eventCountHeaderId"/>
+<mx:Repeater dataProvider="{eventAllCountHeaderArrC}" id="eventAllCountHeaderId"/>-->
+</mx:Application>

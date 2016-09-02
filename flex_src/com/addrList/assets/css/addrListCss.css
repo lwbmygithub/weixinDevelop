@@ -1,0 +1,57 @@
+/* CSS file */
+      ButtonBar {
+         buttonStyleName: "mybuttonBarButtonStyle";
+         firstButtonStyleName: "mybuttonBarButtonStyle";
+         lastButtonStyleName: "mybuttonBarButtonStyle";
+      }
+      
+      .mybuttonBarButtonStyle {
+         fillAlphas: 0.5, 0.8, 0.8, 0.6;
+         fillColors: #ffffff, #ffffff, #ffffff, #ffffff;
+      }
+        TitleWindow{ 
+        	borderColor: #0099ff;
+		 	cornerRadius: 10;
+		 	roundedBottomCorners: true;
+            fontFamily: VerdanaEmbedded; 
+            creationCompleteEffect: myEffect; 
+        } 
+       
+Application {
+ fontSize:12px;
+ fontStyle: normal;
+ fontWeight: normal;
+}
+
+ToolTip {
+   backgroundAlpha: 0.8;
+   backgroundColor: #ffff66;
+   textAlign: left;
+   fontSize: 12;
+}
+Alert{   
+   messageStyleName:alertMessage;   
+/*   titleStyleName:alertTitle;   */
+ /*  fontFamily: VerdanaEmbedded;*/
+   	buttonStyleName: "alertButton"; 
+	borderColor: #0099ff;
+	backgroundColor: #ffffff;
+	backgroundAlpha: 0.75;
+	borderAlpha: 0.5;
+    dropShadowEnabled: true; 
+    shadowDistance: 5; 
+    shadowDirection: right; 
+    cornerRadius: 10; 
+    fontSize: 13;
+    fontWeight:bold;
+    color:#000000;
+  creationCompleteEffect: myEffect;
+/*   hideEffect:alertEffect; */
+   removedEffect:removeAltEffect;
+}   
+.alertMessage{   
+	fontSize:12px;   
+	fontFamily:宋体;   
+	color:#06D274;   
+	fontWeight:bold;   
+}   

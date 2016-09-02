@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE dwr PUBLIC "-//GetAhead Limited//DTD Direct Web Remoting 2.0//EN"    
+           "http://getahead.org/dwr//dwr20.dtd"> 
+
+
+<dwr>  
+    <allow>  
+ 		<create creator="spring" javascript="SendWritMsg">  
+            <param name="beanName" value="documentHandlingManagerAction"></param>
+            <include method="sendMsgWrit"/>
+        </create>  
+    	<create creator="spring" javascript="CheckManagerCertificate">  
+            <param name="beanName" value="managerContactorAction"></param>
+            <include method="checkManagerContactor"/>
+        </create> 
+        <create creator="spring" javascript="publicSendMessage">  
+            <param name="beanName" value="messageManageAction"></param>
+            <include method="sendMessageWithoutRefresh"/>
+        </create>
+        <create creator="spring" javascript="userPassWordReset">  
+            <param name="beanName" value="userManageAction"></param>
+            <include method="resetPassWord"/>
+        </create>
+        <create javascript="SMS" creator="spring">
+        	<param name="beanName" value="addressListManagerAction"></param>
+        	<include method="findMessage"/>
+        	<include method="addOrEditGroupPost"/>
+        	<include method="addOrEditSortNum"/>
+        	<include method="addDeptDWR"/>
+        	<include method="addOrEditShortName"/>
+        </create>
+        <!-- 事件登记下面查找事故类型 -->
+        <create creator="spring" javascript="emergencyEvent">  
+            <param name="beanName" value="emergencyEventManagerAction"></param>
+            <include method="getEventTypeList"/>
+            <include method="getEventLevelList"/>
+            <include method="findRemarkByTypeId"/>
+        </create>
+        <!-- 值班日志信息列表 -->
+        <create javascript="logsInfo" creator="spring">
+        	<param name="beanName" value="ondutyLogManagerAction"></param>        	
+        	<include method="findLogInfoList"/>      
+        	<include method="createOndutyMark"/> 
+        	<include method="updateOndutyMark"/>   	
+        </create>
+         <!-- 应急预案 -->
+        <create javascript="findDept" creator="spring">
+        	<param name="beanName" value="erPlanningManagerAction"></param>        	
+        	<include method="findDeptsByName"/>      
+        	<include method="findErPlaning"/>        	  	
+        </create>
+        <!-- 在线文档管理 -->
+        <create creator="spring" javascript="onlineDocument">  
+            <param name="beanName" value="onlineDocumentManagerAction"></param>
+            <include method="getTemplateBookMarks"/>
+        </create>
+            <!-- 值班排班 -->
+        <create creator="spring" javascript="dutyPlanManager">  
+            <param name="beanName" value="dutyPlanInfoManagerAction"></param>
+            <include method="toUpdateDutyPlanDWR"/>
+            <include method="isExist"/>
+        </create>
+        
+        <!--实时信息-->
+        <create creator="spring" javascript="instMessageInfo">  
+            <param name="beanName" value="instantMessagingAction"></param>
+            <include method="checkMessageStatus"/>
+        </create>
+        
+        <!-- Unity3D 场景题目数据统计 -->
+        <create javascript="statistics" creator="spring">
+        	<param name="beanName" value="StatisticsAction"></param>
+        	<include method="getSceneStatistic"/>
+        	<include method="getClassSceneStatistic"/>
+        </create>
+    </allow>
+   	<signatures> 
+	<![CDATA[ 
+	import java.util.List; 
+	]]> 
+	</signatures>
+</dwr>

@@ -1,0 +1,490 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%"
+	xmlns:MobileNum="com.addrList.components.*"
+	xmlns:ilog="http://www.ilog.com/2007/ilog/flex"
+	xmlns:m="com.sunwah.designLayout.managers.*"
+	xmlns:local="*" creationComplete="init()" horizontalScrollPolicy="off"
+	xmlns:deptCbx="com.addrList.checkBox.*" >
+	<mx:RemoteObject id="addressListRO" destination="addressListRO" fault="faultHandler(event)">
+	<mx:method name="commonAddrByGroupCode" result="commonAddrByGroupCode_resultHandler(event)"/>
+	</mx:RemoteObject>
+	<mx:Script source="utils.as"/> 
+	<mx:Script>
+    <![CDATA[
+    	import mx.events.CloseEvent;
+    	import com.sunwah.designLayout.views.addressList.MsgDetailPopupWins;
+    	import mx.collections.HierarchicalData;
+//    	import com.esri.solutions.flexviewer.AppEvent;
+    	import mx.utils.StringUtil;
+//    	import com.esri.solutions.flexviewer.widgets.AboutWidget;
+    	import mx.core.Application;
+    	import com.addrList.components.faxes.faxesWin;
+//    	import com.esri.solutions.flexviewer.SiteContainer;
+    	import mx.controls.Label;
+    	import mx.printing.FlexPrintJob;
+    	import mx.managers.PopUpManager; 
+//    	import controls.ilog.components.PrintDialog;
+    	import mx.events.ListEvent;
+    	import mx.collections.ArrayCollection;
+    	import mx.collections.XMLListCollection;
+    	import mx.rpc.events.ResultEvent;
+    	import mx.rpc.events.FaultEvent;
+    	import mx.controls.Alert;
+      	import mx.events.ItemClickEvent;
+      	import mx.utils.URLUtil;
+      	
+      
+      	private var port:int;
+       	private var serverName:String;
+        [Bindable]
+        private var serverUrl:String; 
+        [Bindable]     
+      	public var voiceSelArr:Array = new Array();
+		[Bindable]
+		private var commonAddrPeo:ArrayCollection = new ArrayCollection();
+		[Bindable]
+		private var commonAddrDept:ArrayCollection = new ArrayCollection();
+		[Bindable]
+		private var addrType:String;
+		
+   private function init():void{
+   		var obj:Object = ExternalInterface.call("getParameters");
+		addressListRO.commonAddrByGroupCode(obj['groupType'],obj['groupCode'],obj['realmId']);
+		addrType=obj['groupType'];
+        //for test start
+//		addressListRO.commonAddrByGroupCode("people","yjbllw","101");
+//		addrType="people";
+		//for test end
+	  	getFullUrladd();
+   }
+   private function faultHandler(event:FaultEvent):void{
+      	Alert.show(event.fault.faultString);
+      }
+    private function commonAddrByGroupCode_resultHandler(event:ResultEvent):void{
+    	if(addrType=="people")
+    	{
+    		commonAddrPeo= event.result as ArrayCollection;
+    		for each(var item:Object in commonAddrPeo)
+    		{
+    			item.isAdd = false;
+    		}
+    		commonAddrPeo.refresh();
+    		exVS.selectedIndex = 0;
+    		commonAddrPeo.filterFunction = PeopleAddrFilterChanged;  
+            commonAddrPeo.refresh(); 
+    	}
+    	else
+    	{
+    		commonAddrDept = event.result as ArrayCollection;
+    		for each(var items:Object in commonAddrDept)
+    		{
+    			items.isAdd = false;
+    		}
+    		commonAddrDept.refresh();
+    		exVS.selectedIndex = 1;
+    		commonAddrDept.filterFunction = DeptAddrFilterChanged;  
+            commonAddrDept.refresh(); 
+    	}
+    }
+    public function PeopleAddrFilterChanged(item:Object):Boolean{
+    	var searchText:String=StringUtil.trim(peopleFilter.text);
+        if ((item.DEPT_NAME != null && item.DEPT_NAME != '' && item.DEPT_NAME.match(new RegExp(searchText, "i"))) || (item.NAME!=null && item.NAME!='' && item.NAME.match(new RegExp(searchText, "i")))) { 
+            return true; 
+        } else { 
+            return false; 
+        } 
+    }
+    public function DeptAddrFilterChanged(item:Object):Boolean{
+    	var searchText:String=StringUtil.trim(deptFilter.text);
+        if (item.DEPT_NAME != null && item.DEPT_NAME != '' && item.DEPT_NAME.match(new RegExp(searchText, "i"))) { 
+            return true; 
+        } else { 
+            return false; 
+        } 
+    }
+	 private function readyToSend():void{
+		sendMsgList(getSendList());
+	}
+	private function getSendList():Array{
+		var sendArr:Array = new Array();
+		if(addrType=="people"){
+			for each(var item:Object in commonAddrPeo.source)
+    		{
+    			if(item.isAdd)
+    			{
+    				sendArr.push(item);
+    			}
+    		}
+		}
+		else{
+			for each(var items:Object in commonAddrDept.source)
+    		{
+    			if(items.isAdd)
+    			{
+    				sendArr.push(items);
+    			}
+    		}
+		}
+		return sendArr;
+	}
+	private function sendMsgList(data:Array):void{
+		var sendPeopleArrc:ArrayCollection = new ArrayCollection();
+		for each(var item:Object in data)
+			{
+				if(addrType=="people")
+				{				
+					var name:String = item.NAME;
+					var cell:String = item.CELL;
+					var obj:Object = {"name":name,"cell":cell};
+					sendPeopleArrc.addItem(obj);
+				}
+				else
+				{
+					var nameD:String = item.DEPT_NAME;
+					var cellD:String = item.DUTY_CELL;
+					var objD:Object = {"name":nameD,"cell":cellD};
+					sendPeopleArrc.addItem(objD);
+				}
+			}
+		sendConfirmWin(sendPeopleArrc);
+	}
+	private function sendConfirmWin(sendArrc:ArrayCollection):void{
+		var msgDetailsWin:MsgDetailPopupWins = new MsgDetailPopupWins();
+		msgDetailsWin.exMsgArrc = sendArrc;
+		msgDetailsWin.sourceFrom = 6;//sourceFrom为字典，6为日常联络
+		PopUpManager.addPopUp(msgDetailsWin,this,true);
+		PopUpManager.centerPopUp(msgDetailsWin);
+	}
+  //获取当前url路径
+  	private function getFullUrladd():void
+	{
+		var url:String = Application.application.url;
+		port = URLUtil.getPort(url);
+        serverName = URLUtil.getServerName(url);
+        serverUrl='http://'+serverName+':'+port+'/jm_emDuty/ExcelExport.jsp';        
+	}
+      
+	/*******通用通讯录组*******/
+	private function selectAllHandler():void
+	{
+		if(addrType=="people"){
+			if(StringUtil.trim(peopleFilter.text).length>0)
+			{
+				var arr:Array = commonAddrPeo.source;
+				for each(var arrTem:Object in arr)
+				{
+					//arrTem.isAdd = selectAll.selected;
+					for each(var itemc:Object in commonAddrPeo)
+		    		{
+		    			if(itemc.PEOPLE_ID == arrTem.PEOPLE_ID && itemc.MARKED == arrTem.MARKED)
+		    			{
+		    				itemc.isAdd = selectAll.selected;
+		    				break;
+		    			}
+		    		}
+	   			}
+   			}
+   			else
+   			{
+   				for each(var item:Object in commonAddrPeo)
+	    		{
+	    			item.isAdd = selectAll.selected;
+	    		}
+   			}
+   			commonAddrPeo.refresh();
+  		}
+  		else
+  		{
+    		if(StringUtil.trim(deptFilter.text).length>0)
+			{
+				var arrc:Array = commonAddrDept.source;
+				for each(var arrTemc:Object in arrc)
+				{
+//					arrTemc.isAdd = selectAll.selected;
+					for each(var itemD:Object in commonAddrDept)
+		    		{
+		    			if(itemD.DEPT_ID == arrTemc.DEPT_ID)
+		    			{
+		    				itemD.isAdd = selectAll.selected;
+		    				break;
+		    			}
+		    		}
+	   			}
+   			}
+   			else
+   			{
+   				for each(var items:Object in commonAddrDept)
+	    		{
+	    			items.isAdd = selectAll.selected;
+	    		}
+   			}
+   			commonAddrDept.refresh();
+  		}
+	}
+	private function setIsAddState(arrc:ArrayCollection):void
+	{
+		
+	}
+	//多人传真
+	private function popUpFaxWin():void{
+		var loginStatus:String = ExternalInterface.call("loginStatusHandler");
+		if(loginStatus == "unLogin"){
+//			var voiceLoginWin:voiceLogin = new voiceLogin();
+//			voiceLoginWin.x=this.parentApplication.width/3;
+//			voiceLoginWin.y=this.parentApplication.height/5;
+//			voiceLoginWin.voiceMark="Faxes";
+//			PopUpManager.addPopUp(voiceLoginWin, this, true);
+		}
+		else{
+			var event:CommonEvent=new CommonEvent("");
+			popUpFaxHandler(event);
+		}
+	}
+	public function popUpFaxHandler(evt:CommonEvent):void{
+		var msgArrc:ArrayCollection = new ArrayCollection;
+		var sendArr:Array = getSendList();
+		for each(var tem:Object in sendArr)
+		{
+			if(addrType=="people")
+			{
+			var obj:Object={"NAME_C":tem.NAME,"FAX_NUMBER":tem.FAX,"CONTACTOR_MOBILE":tem.CELL,"CONTACTOR_TEL":tem.TEL};
+			msgArrc.addItem(obj);
+			}
+			else{
+			var objd:Object={"NAME_C":tem.DEPT_NAME,"FAX_NUMBER":tem.DUTY_FAX,"CONTACTOR_MOBILE":tem.DUTY_CELL,"CONTACTOR_TEL":tem.DUTY_TEL};
+			msgArrc.addItem(objd);
+			}
+		}
+		var faxWin:faxesWin = new faxesWin();
+		faxWin.x=this.parentApplication.width/3;
+		faxWin.y=this.parentApplication.height/5;
+		faxWin.faxArrc=msgArrc;
+		PopUpManager.addPopUp(faxWin, this, false);
+	}
+	//发邮件
+	public function sendMail():void {
+		var str:String = "mailto:";
+		var alertStr:String="";
+		var closeSucUrl:URLRequest;
+		var sendArr:Array = getSendList();
+		for each(var tem:Object in sendArr)
+		{
+			if(tem.hasOwnProperty("EMAIL") && tem.EMAIL!=null  && StringUtil.trim(tem.EMAIL).length>0)
+			{
+				str = str + tem.EMAIL +";";
+			}
+			else
+			{
+				if(tem.hasOwnProperty("NAME"))
+				{
+					alertStr = alertStr + tem.NAME + "、";
+				}
+				else if(tem.hasOwnProperty("DEPT_NAME"))
+				{
+					alertStr = alertStr + tem.DEPT_NAME + "、";
+				}
+			}
+		}
+		if(str.length==7)
+		{
+			Alert.show("邮箱均为空，不能进行发邮件操作。");
+		}
+		else if(alertStr.length>0)
+		{
+			Alert.show(alertStr.substring(0,alertStr.length-1) + " 邮箱为空，不会加入邮件发送列表中。", "", Alert.YES|Alert.NO, null, function(evt:CloseEvent):void{
+						if (evt.detail == Alert.YES){
+							closeSucUrl=new URLRequest(str);
+		    				navigateToURL(closeSucUrl,"_self");		              
+						}
+						else if(evt.detail == Alert.NO){}
+					}, null, Alert.YES);
+		}
+		else
+		{
+			closeSucUrl=new URLRequest(str);
+		    navigateToURL(closeSucUrl,"_self");
+	 	}
+	}	
+	public function findPeopleInfos(obj:Object):void
+	{
+//		var obj:Object = contactADG.selectedItem;
+		if(obj.hasOwnProperty("DETAIL_LINK") && String(obj.DETAIL_LINK).length>0 )
+		{
+			var layer:String = ExternalInterface.call("getFolderLayer");
+			navigateToURL(new URLRequest(layer + obj.DETAIL_LINK),"_blank");
+		}
+		
+	}	
+	
+	//excel headerText勾选
+	public function selectHeaderText(i:int):void {		
+		this["SelectHeaderText"+i].visible = ! this["SelectHeaderText"+i].visible;		
+	}
+	
+	//全选 导出项
+	public function selectAllPopUpCheckBox():void {
+		for(var i:int = 1; i < 9; i++) {
+			this["popUpCheckBox"+i].selected = ! this["popUpCheckBox"+i].selected;
+			this["SelectHeaderText"+i].visible = ! this["SelectHeaderText"+i].visible;
+		}
+	}
+	
+	private function toExcel():void
+	{
+		if(addrType=="people")
+		{
+			loadDGInExcel(peopleArrcGrid,serverUrl);
+		}
+		else
+		{
+			loadDGInExcel(deptArrcGrid,serverUrl);
+		}
+		
+	}
+    ]]>
+  </mx:Script>
+		
+		<mx:VBox id="exClassfiedByExpertType" width="100%" height="100%" backgroundColor="white" creationPolicy="all">
+			<mx:ViewStack id="exVS" width="100%" height="100%" creationPolicy="all">
+				<mx:VBox label="人员列表" width="100%" height="100%">
+					<mx:ControlBar paddingTop="0" paddingBottom="0">
+		 			<mx:Label text="部门/姓名：" />
+					<mx:TextInput id="peopleFilter" text="" width="120"  backgroundColor="0xffffff" color="0x000000" change="commonAddrPeo.refresh();"/>
+		 			</mx:ControlBar>
+					<mx:DataGrid id="contactADG"
+						 width="99%" height="100%" dataProvider="{commonAddrPeo}" sortableColumns="false"
+						 >
+						<mx:columns>
+							<mx:DataGridColumn dataField="NAME" headerText="姓名" width="90" showDataTips="true">
+							<mx:itemRenderer>
+								<mx:Component>
+									<deptCbx:AddrPeopleCheckBox nameC="{data.NAME}" />
+								</mx:Component>
+							</mx:itemRenderer>
+							</mx:DataGridColumn>
+							<mx:DataGridColumn dataField="PEOPLE_TYPE" headerText="人员类型" showDataTips="true"/>
+							<mx:DataGridColumn dataField="DEPT_NAME" headerText="部门" showDataTips="true"/>
+							<mx:DataGridColumn dataField="POST" headerText="职位" showDataTips="true"/>
+							<mx:DataGridColumn dataField="GROUP_POST" headerText="组内职位" showDataTips="true"/>
+							<mx:DataGridColumn dataField="TEL" headerText="联系电话" showDataTips="true">
+							<mx:itemRenderer>
+								<mx:Component>
+									<MobileNum:voiceCallSoftPhone  mobileNum="{data.TEL}"/>
+								</mx:Component>
+							</mx:itemRenderer> 	
+							</mx:DataGridColumn>
+							<mx:DataGridColumn headerText="手机" showDataTips="true">
+							<mx:itemRenderer>
+								<mx:Component>
+									<MobileNum:voiceCallSoftPhone  mobileNum="{data.CELL}"/>
+								</mx:Component>
+							</mx:itemRenderer> 
+							</mx:DataGridColumn>
+							<mx:DataGridColumn dataField="EMAIL" headerText="邮箱" showDataTips="true"/>
+							<mx:DataGridColumn dataField="FAX" headerText="传真" showDataTips="true"/>
+						</mx:columns>
+					</mx:DataGrid>
+					</mx:VBox>
+					<mx:VBox label="部门列表" width="100%" height="100%">
+					<mx:ControlBar paddingTop="0" paddingBottom="0">
+		 			<mx:Label text="部门：" />
+					<mx:TextInput id="deptFilter" text="" width="120"  backgroundColor="0xffffff" color="0x000000" change="commonAddrDept.refresh();"/>
+		 			</mx:ControlBar>
+					<mx:DataGrid id="deptADG"
+						width="99%" height="100%" dataProvider="{commonAddrDept}" sortableColumns="false"
+						>
+						<mx:columns>
+							<mx:DataGridColumn dataField="DEPT_NAME" headerText="部门" showDataTips="true">
+								<mx:itemRenderer>
+								<mx:Component>
+									<deptCbx:AddrPeopleCheckBox nameC="{data.DEPT_NAME}" />
+								</mx:Component>
+							</mx:itemRenderer>
+							</mx:DataGridColumn>
+							<mx:DataGridColumn dataField="DUTY_TEL" headerText="联系电话" showDataTips="true">
+							<mx:itemRenderer>
+								<mx:Component>
+									<MobileNum:voiceCallSoftPhone  mobileNum="{data.DUTY_TEL}"/>
+								</mx:Component>
+							</mx:itemRenderer> 	
+							</mx:DataGridColumn>
+							<mx:DataGridColumn headerText="手机" showDataTips="true">
+							<mx:itemRenderer>
+								<mx:Component>
+									<MobileNum:voiceCallSoftPhone  mobileNum="{data.DUTY_CELL}"/>
+								</mx:Component>
+							</mx:itemRenderer> 
+							</mx:DataGridColumn>
+							<mx:DataGridColumn dataField="COMPLAINT_PHONE_NUM" headerText="投诉电话" showDataTips="true"/>
+							<mx:DataGridColumn dataField="EMAIL" headerText="投诉邮箱" showDataTips="true"/>
+							<mx:DataGridColumn dataField="DUTY_FAX" headerText="传真" showDataTips="true"/>
+						</mx:columns>
+					</mx:DataGrid>
+					</mx:VBox>
+					
+			</mx:ViewStack>
+			<mx:HBox height="5%" width="99%" paddingLeft="5" horizontalAlign="left" verticalAlign="middle" horizontalGap="10">	
+				<mx:CheckBox id="selectAll" label="全选" width="51" height="25" fontSize="12" selected="false" change="selectAllHandler();"/>
+				<mx:Button label="发送短信" useHandCursor="true" buttonMode="true" click="readyToSend();"  height="25" fontSize="12" width="80"/>
+				<mx:Button label="传真发送" useHandCursor="true" buttonMode="true" height="25" width="85" fontSize="12" click="popUpFaxWin();"/>
+				<mx:Button label="发送邮件" useHandCursor="true" buttonMode="true" height="25" width="85" fontSize="12" click="sendMail();"/>
+				<mx:Button label="导出Excel" useHandCursor="true" buttonMode="true" height="25" width="95" fontSize="12" click="toExcel();" />
+				<mx:PopUpButton label="选择导出项" x="10" y="494" fontSize="12">
+					<mx:popUp>			
+						<mx:VBox>
+						<mx:VBox visible="{addrType=='people'}" height="{addrType!='people'?0:60}">
+							<mx:HBox backgroundColor="white">
+							<mx:CheckBox label="姓名" selected="true" click="selectHeaderText(1);" />
+							<mx:CheckBox label="人员类型" selected="true" click="selectHeaderText(2);" />
+							<mx:CheckBox label="部门" selected="true" click="selectHeaderText(3);" />
+							<mx:CheckBox label="职位" selected="true" click="selectHeaderText(4);" />
+							</mx:HBox>
+							<mx:HBox>
+							<mx:CheckBox label="组内职位" selected="true" click="selectHeaderText(5);" />
+							<mx:CheckBox label="联系电话" selected="true" click="selectHeaderText(6);" />
+							<mx:CheckBox label="手机" selected="true" click="selectHeaderText(7);" />
+							<mx:CheckBox label="邮箱" selected="true" click="selectHeaderText(8);" />
+							<mx:CheckBox label="传真" selected="true" click="selectHeaderText(9);" />
+							</mx:HBox>	
+						</mx:VBox>
+						<mx:VBox visible="{addrType!='people'}" height="{addrType=='people'?0:60}">
+							<mx:HBox backgroundColor="white">
+							<mx:CheckBox label="部门名称" selected="true" click="selectHeaderText(11);" />
+							<mx:CheckBox label="联系电话" selected="true" click="selectHeaderText(21);" />
+							<mx:CheckBox label="手机" selected="true" click="selectHeaderText(31);" />
+							</mx:HBox>
+							<mx:HBox>
+							<mx:CheckBox label="投诉电话" selected="true" click="selectHeaderText(41);" />
+							<mx:CheckBox label="投诉邮箱" selected="true" click="selectHeaderText(51);" />
+							<mx:CheckBox label="传真" selected="true" click="selectHeaderText(61);" />
+							</mx:HBox>				
+						</mx:VBox>			
+						</mx:VBox>	
+					</mx:popUp>
+				</mx:PopUpButton>
+			</mx:HBox>
+		</mx:VBox>
+		<mx:DataGrid visible="false" dataProvider="{commonAddrPeo}" fontSize="12" id="peopleArrcGrid">
+		<mx:columns>
+			<mx:DataGridColumn dataField="NAME" headerText="姓名" width="100" id="SelectHeaderText1"/>
+			<mx:DataGridColumn dataField="PEOPLE_TYPE" headerText="人员类型" width="70" id="SelectHeaderText2"/>
+			<mx:DataGridColumn dataField="DEPT_NAME" headerText="部门" width="100" id="SelectHeaderText3"/>
+			<mx:DataGridColumn dataField="POST" headerText="职位" width="100" id="SelectHeaderText4"/>
+			<mx:DataGridColumn dataField="GROUP_POST" headerText="组内职位" width="130" id="SelectHeaderText5"/>
+			<mx:DataGridColumn dataField="TEL" headerText="联系电话" width="130" id="SelectHeaderText6"/>
+			<mx:DataGridColumn dataField="CELL" headerText="手机" width="130" id="SelectHeaderText7"/>
+			<mx:DataGridColumn dataField="EMAIL" headerText="邮箱" width="170" id="SelectHeaderText8"/>	
+			<mx:DataGridColumn dataField="FAX" headerText="传真" width="130" id="SelectHeaderText9"/>				
+		</mx:columns>
+	   </mx:DataGrid>
+	   <mx:DataGrid visible="false" dataProvider="{commonAddrDept}" fontSize="12" id="deptArrcGrid">
+		<mx:columns>
+			<mx:DataGridColumn dataField="DEPT_NAME" headerText="部门" width="100" id="SelectHeaderText11"/>
+			<mx:DataGridColumn dataField="DUTY_TEL" headerText="联系电话" width="130" id="SelectHeaderText21"/>
+			<mx:DataGridColumn dataField="DUTY_CELL" headerText="手机" width="130" id="SelectHeaderText31"/>
+			<mx:DataGridColumn dataField="COMPLAINT_PHONE_NUM" headerText="投诉电话" width="170" id="SelectHeaderText41"/>	
+			<mx:DataGridColumn dataField="EMAIL" headerText="投诉邮箱" width="170" id="SelectHeaderText51"/>	
+			<mx:DataGridColumn dataField="DUTY_FAX" headerText="传真" width="130" id="SelectHeaderText61"/>				
+		</mx:columns>
+	   </mx:DataGrid>
+</mx:Canvas>
